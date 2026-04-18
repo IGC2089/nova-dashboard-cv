@@ -28,9 +28,11 @@ def test_no_accumulation_when_hacc_too_high():
 def test_save_triggered_after_threshold():
     saves = []
     acc = OdometerAccumulator(initial_odo_mi=0.0, save_callback=saves.append)
-    acc.update(speed_mph=60.0, dt_s=180.0, hacc_m=5.0)
+    # accumulate 0.5 mi — below 1.0 mi threshold, no save
+    acc.update(speed_mph=60.0, dt_s=30.0, hacc_m=5.0)
     assert len(saves) == 0
-    acc.update(speed_mph=60.0, dt_s=252.0, hacc_m=5.0)
+    # accumulate 0.8 mi more — crosses 1.0 mi threshold, one save
+    acc.update(speed_mph=60.0, dt_s=48.0, hacc_m=5.0)
     assert len(saves) == 1
 
 

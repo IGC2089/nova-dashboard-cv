@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 ODO_PATH = '/data/odo.json'
 HACC_MAX_M = 10.0
-SAVE_INTERVAL_S = 300.0  # Save at most every 5 minutes
+SAVE_INTERVAL_MI = 1.0  # Save every 1 mile (roughly every 60s at highway speed)
 
 
 class OdometerAccumulator:
@@ -22,8 +22,7 @@ class OdometerAccumulator:
     ):
         self.odo_mi: float = initial_odo_mi
         self.trip_mi: float = 0.0
-        self._elapsed_s: float = 0.0
-        self._last_save_s: float = 0.0
+        self._last_save_odo: float = initial_odo_mi
         self._save_cb = save_callback
 
     def update(self, speed_mph: float, dt_s: float, hacc_m: float) -> bool:
@@ -32,10 +31,9 @@ class OdometerAccumulator:
         delta_mi = speed_mph * (dt_s / 3600.0)
         self.odo_mi += delta_mi
         self.trip_mi += delta_mi
-        self._elapsed_s += dt_s
-        if self._save_cb and (self._elapsed_s - self._last_save_s) >= SAVE_INTERVAL_S:
+        if self._save_cb and (self.odo_mi - self._last_save_odo) >= SAVE_INTERVAL_MI:
             self._save_cb((self.odo_mi, self.trip_mi))
-            self._last_save_s = self._elapsed_s
+            self._last_save_odo = self.odo_mi
         return True
 
 
