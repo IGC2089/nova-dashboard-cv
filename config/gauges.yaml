@@ -1,0 +1,65 @@
+# config/gauges.yaml
+# Angles in degrees, clockwise from 3-o'clock (OpenCV convention).
+# start_angle=150 places 0-value at ~8 o'clock.
+# sweep=240 gives a 240-degree arc ending at ~4 o'clock.
+
+tachometer:
+  center:       [480, 360]
+  radius:       280
+  arc_width:    18
+  start_angle:  150
+  sweep:        240
+  min_val:      0
+  max_val:      6000
+  redzone_val:  4500
+  label:        "RPM"
+  lerp_alpha:   0.15
+
+speedometer:
+  center:       [1440, 360]
+  radius:       280
+  arc_width:    18
+  start_angle:  150
+  sweep:        240
+  min_val:      0
+  max_val:      160
+  redzone_val:  null
+  label:        "MPH"
+  lerp_alpha:   0.10
+
+center_panel:
+  readouts:
+    - label:       "MAP"
+      state_field: map_kpa
+      unit:        "kPa"
+      pos:         [760, 160]
+      format:      "{:.0f}"
+      font_scale:  1.8
+
+    - label:       "CLT"
+      state_field: clt_f
+      unit:        "F"
+      pos:         [1160, 160]
+      format:      "{:.0f}"
+      font_scale:  1.8
+
+    - label:       "AFR"
+      state_field: afr
+      unit:        ""
+      pos:         [960, 360]
+      format:      "{:.1f}"
+      font_scale:  3.5
+
+    - label:       "ODO"
+      state_field: odo_mi
+      unit:        "mi"
+      pos:         [760, 580]
+      format:      "{:.0f}"
+      font_scale:  1.4
+
+    - label:       "TRIP"
+      state_field: trip_mi
+      unit:        "mi"
+      pos:         [1160, 580]
+      format:      "{:.1f}"
+      font_scale:  1.4
