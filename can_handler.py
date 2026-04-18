@@ -44,3 +44,49 @@ class SpeeduinoDecoder:
             'inj_duty':    inj_duty,
             'ign_advance': float(ign_advance),
         }
+
+
+import threading
+import can
+from vehicle_state import VehicleState
+
+
+class CANListener(threading.Thread):
+    """Daemon thread: reads SocketCAN frames, decodes, writes to VehicleState."""
+
+    def __init__(self, state: VehicleState, channel: str = 'can0'):
+        super().__init__(daemon=True, name='CANListener')
+        self._state = state
+        self._channel = channel
+        self._decoder = SpeeduinoDecoder()
+        self._running = False
+
+    def run(self) -> None:
+        self._running = True
+        bus = can.interface.Bus(channel=self._channel, bustype='socketcan')
+        log.info("CAN listener started on %s", self._channel)
+        try:
+            while self._running:
+                msg = bus.recv(timeout=0.1)
+                if msg is None:
+                    continue
+                if msg.arbitration_id == CAN_ID_0:
+                    result = self._decoder.decode_0x320(bytes(msg.data))
+                    if result:
+                        self._apply(result)
+                elif msg.arbitration_id == CAN_ID_1:
+                    result = self._decoder.decode_0x321(bytes(msg.data))
+                    if result:
+                        self._apply(result)
+        finally:
+            bus.shutdown()
+            log.info("CAN listener stopped")
+
+    def stop(self) -> None:
+        self._running = False
+
+    def _apply(self, values: dict) -> None:
+        with self._state.lock:
+            for key, val in values.items():
+                if hasattr(self._state, key):
+                    setattr(self._state, key, val)
