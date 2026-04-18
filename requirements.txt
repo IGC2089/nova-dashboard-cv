@@ -1,0 +1,5 @@
+opencv-python>=4.9.0
+python-can>=4.4.0
+numpy>=1.26.0
+gpsd-py3>=0.3.0
+PyYAML>=6.0.2
