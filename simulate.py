@@ -1,9 +1,13 @@
 # simulate.py
 """Run the dashboard with simulated data. No hardware required.
+On Pi (no display): writes directly to /dev/fb0.
+On desktop: falls back to cv2.imshow window.
 Usage: python simulate.py
 """
 from __future__ import annotations
+import mmap
 import math
+import os
 import time
 import threading
 import numpy as np
@@ -13,9 +17,10 @@ from vehicle_state import VehicleState
 from dashboard_ui import GaugeRenderer
 from config_loader import load_style, load_gauges
 
-TARGET_FPS = 60
+TARGET_FPS = 30
 FRAME_TIME = 1.0 / TARGET_FPS
 WIDTH, HEIGHT = 800, 480
+FB_DEVICE = '/dev/fb0'
 
 
 def _simulate_state(state: VehicleState) -> None:
@@ -50,30 +55,47 @@ def main() -> None:
     tach_alpha   = gauges['tachometer']['lerp_alpha']
     speedo_alpha = gauges['speedometer']['lerp_alpha']
 
-    cv2.namedWindow('Nova Dashboard — SIMULATION', cv2.WINDOW_NORMAL)
-    cv2.resizeWindow('Nova Dashboard — SIMULATION', WIDTH, HEIGHT)
     canvas = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
-    while True:
-        frame_start = time.monotonic()
-        snap = state.snapshot()
+    use_fb = os.path.exists(FB_DEVICE) and not os.environ.get('DISPLAY')
+    if use_fb:
+        fb_file = open(FB_DEVICE, 'rb+')
+        mm = mmap.mmap(fb_file.fileno(), WIDTH * HEIGHT * 4)
+        fb_buf = np.frombuffer(mm, dtype=np.uint8).reshape(HEIGHT, WIDTH, 4)
+        print(f"Rendering to {FB_DEVICE}")
+    else:
+        cv2.namedWindow('Nova Dashboard — SIMULATION', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('Nova Dashboard — SIMULATION', WIDTH, HEIGHT)
+        print("Rendering to window")
 
-        tach_target   = renderer.val_to_angle(snap.rpm,       'tachometer')
-        speedo_target = renderer.val_to_angle(snap.speed_mph, 'speedometer')
-        interp['tach_angle']   += (tach_target   - interp['tach_angle'])   * tach_alpha
-        interp['speedo_angle'] += (speedo_target - interp['speedo_angle']) * speedo_alpha
+    try:
+        while True:
+            frame_start = time.monotonic()
+            snap = state.snapshot()
 
-        renderer.render_frame(canvas, snap, interp)
-        cv2.imshow('Nova Dashboard — SIMULATION', canvas)
+            tach_target   = renderer.val_to_angle(snap.rpm,       'tachometer')
+            speedo_target = renderer.val_to_angle(snap.speed_mph, 'speedometer')
+            interp['tach_angle']   += (tach_target   - interp['tach_angle'])   * tach_alpha
+            interp['speedo_angle'] += (speedo_target - interp['speedo_angle']) * speedo_alpha
 
-        if cv2.waitKey(1) & 0xFF in (ord('q'), 27):
-            break
+            renderer.render_frame(canvas, snap, interp)
 
-        elapsed = time.monotonic() - frame_start
-        if FRAME_TIME - elapsed > 0:
-            time.sleep(FRAME_TIME - elapsed)
+            if use_fb:
+                cv2.cvtColor(canvas, cv2.COLOR_BGR2BGRA, dst=fb_buf)
+            else:
+                cv2.imshow('Nova Dashboard — SIMULATION', canvas)
+                if cv2.waitKey(1) & 0xFF in (ord('q'), 27):
+                    break
 
-    cv2.destroyAllWindows()
+            elapsed = time.monotonic() - frame_start
+            if FRAME_TIME - elapsed > 0:
+                time.sleep(FRAME_TIME - elapsed)
+    finally:
+        if use_fb:
+            mm.close()
+            fb_file.close()
+        else:
+            cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':

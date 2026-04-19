@@ -26,28 +26,24 @@ logging.basicConfig(
 )
 log = logging.getLogger('main')
 
-TARGET_FPS = 60
+TARGET_FPS = 30
 FRAME_TIME = 1.0 / TARGET_FPS
 WIDTH, HEIGHT = 800, 480
 FB_DEVICE = '/dev/fb0'
 
 
 class Framebuffer:
-    """Write BGR numpy frames directly to the Linux framebuffer."""
+    """Zero-copy BGR frame writer — maps /dev/fb0 as a numpy array."""
 
     def __init__(self, device: str, width: int, height: int):
         self._fb = open(device, 'rb+')
-        self._width = width
-        self._height = height
-        self._mmap = mmap.mmap(self._fb.fileno(), width * height * 4)
+        mm = mmap.mmap(self._fb.fileno(), width * height * 4)
+        self._buf = np.frombuffer(mm, dtype=np.uint8).reshape(height, width, 4)
 
     def write(self, bgr_frame: np.ndarray) -> None:
-        bgra = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2BGRA)
-        self._mmap.seek(0)
-        self._mmap.write(bgra.tobytes())
+        cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2BGRA, dst=self._buf)
 
     def close(self) -> None:
-        self._mmap.close()
         self._fb.close()
 
 
