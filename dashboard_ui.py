@@ -62,3 +62,86 @@ class GaugeRenderer:
                    tuple(self._s['hub_color']), -1, cv2.LINE_AA)
         cv2.circle(canvas, (cx, cy), 6,
                    tuple(self._s['arc_inactive']), -1, cv2.LINE_AA)
+
+    def _put_centered_text(self, canvas: np.ndarray, text: str,
+                           cx: int, cy: int, color: list,
+                           font_scale: float = 1.0,
+                           thickness: int = 1) -> None:
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        (tw, th), _ = cv2.getTextSize(text, font, font_scale, thickness)
+        cv2.putText(canvas, text,
+                    (cx - tw // 2, cy + th // 2),
+                    font, font_scale, tuple(color), thickness, cv2.LINE_AA)
+
+    def draw_tachometer(self, canvas: np.ndarray, rpm: float,
+                        needle_angle: float) -> None:
+        cfg = self._g['tachometer']
+        cx, cy = cfg['center']
+        active_angle = self.val_to_angle(rpm, 'tachometer')
+        self._draw_arc_track(canvas, 'tachometer', active_angle)
+        self._draw_needle(canvas, 'tachometer', needle_angle)
+        rpm_str = f"{int(rpm):,}"
+        self._put_centered_text(canvas, rpm_str, cx, cy - 60,
+                                self._s['value_color'], font_scale=1.6, thickness=2)
+        self._put_centered_text(canvas, cfg['label'], cx, cy - 30,
+                                self._s['label_color'], font_scale=0.7)
+        for pct, label in [(0, '0'), (0.33, '2K'), (0.67, '4K'), (1.0, '6K')]:
+            angle = cfg['start_angle'] + pct * cfg['sweep']
+            lx, ly = self._angle_to_xy(cx, cy, cfg['radius'] + 22, angle)
+            self._put_centered_text(canvas, label, lx, ly,
+                                    self._s['label_color'], font_scale=0.5)
+
+    def draw_speedometer(self, canvas: np.ndarray, speed_mph: float,
+                         needle_angle: float, gps_fix: bool) -> None:
+        cfg = self._g['speedometer']
+        cx, cy = cfg['center']
+        active_angle = self.val_to_angle(speed_mph, 'speedometer')
+        self._draw_arc_track(canvas, 'speedometer', active_angle)
+        self._draw_needle(canvas, 'speedometer', needle_angle)
+        if gps_fix:
+            speed_str = f"{int(speed_mph)}"
+            color = self._s['value_color']
+        else:
+            speed_str = "---"
+            color = self._s['label_color']
+        self._put_centered_text(canvas, speed_str, cx, cy - 60,
+                                color, font_scale=1.6, thickness=2)
+        self._put_centered_text(canvas, cfg['label'], cx, cy - 30,
+                                self._s['label_color'], font_scale=0.7)
+        dot_color = self._s['arc_active'] if gps_fix else self._s['arc_redzone']
+        cv2.circle(canvas, (cx, cy + 50), 6, tuple(dot_color), -1, cv2.LINE_AA)
+        self._put_centered_text(canvas, 'GPS', cx + 16, cy + 55,
+                                self._s['label_color'], font_scale=0.45)
+        for pct, label in [(0, '0'), (0.25, '40'), (0.5, '80'),
+                           (0.75, '120'), (1.0, '160')]:
+            angle = cfg['start_angle'] + pct * cfg['sweep']
+            lx, ly = self._angle_to_xy(cx, cy, cfg['radius'] + 22, angle)
+            self._put_centered_text(canvas, label, lx, ly,
+                                    self._s['label_color'], font_scale=0.5)
+
+    def draw_readout(self, canvas: np.ndarray, label: str, value_str: str,
+                     unit: str, pos: list, font_scale: float) -> None:
+        x, y = pos
+        self._put_centered_text(canvas, label, x, y - 28,
+                                self._s['label_color'], font_scale=0.55)
+        self._put_centered_text(canvas, value_str, x, y,
+                                self._s['value_color'], font_scale=font_scale,
+                                thickness=2)
+        if unit:
+            self._put_centered_text(canvas, unit, x, y + 28,
+                                    self._s['label_color'], font_scale=0.5)
+
+    def draw_center_panel(self, canvas: np.ndarray, state) -> None:
+        for rd in self._g['center_panel']['readouts']:
+            field = rd['state_field']
+            raw_val = getattr(state, field, None)
+            if raw_val is None or (field in ('odo_mi', 'trip_mi')
+                                   and not getattr(state, 'gps_fix', True)):
+                value_str = 'NO GPS'
+            else:
+                value_str = rd['format'].format(raw_val)
+            self.draw_readout(canvas, rd['label'], value_str, rd['unit'],
+                              rd['pos'], rd['font_scale'])
+        col = tuple(self._s['arc_inactive'])
+        cv2.line(canvas, (640, 40), (640, 680), col, 1)
+        cv2.line(canvas, (1280, 40), (1280, 680), col, 1)

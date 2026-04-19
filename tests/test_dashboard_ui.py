@@ -83,3 +83,42 @@ def test_draw_needle_no_crash():
     canvas = make_canvas()
     r._draw_needle(canvas, 'tachometer', needle_angle=270.0)
     assert canvas.shape == (720, 1920, 3)
+
+
+from vehicle_state import VehicleState
+
+
+def make_state(**kwargs):
+    s = VehicleState(**kwargs)
+    s.lock = None
+    return s
+
+
+def test_draw_tachometer_no_crash():
+    r = make_renderer()
+    canvas = make_canvas()
+    r.draw_tachometer(canvas, rpm=3400.0, needle_angle=270.0)
+    assert canvas.shape == (720, 1920, 3)
+
+
+def test_draw_speedometer_no_crash():
+    r = make_renderer()
+    canvas = make_canvas()
+    r.draw_speedometer(canvas, speed_mph=65.0, needle_angle=250.0, gps_fix=True)
+    assert canvas.shape == (720, 1920, 3)
+
+
+def test_draw_speedometer_no_gps_no_crash():
+    r = make_renderer()
+    canvas = make_canvas()
+    r.draw_speedometer(canvas, speed_mph=0.0, needle_angle=150.0, gps_fix=False)
+    assert canvas.shape == (720, 1920, 3)
+
+
+def test_draw_center_panel_no_crash():
+    r = make_renderer()
+    canvas = make_canvas()
+    state = make_state(map_kpa=98.0, clt_f=195.0, afr=14.7,
+                       odo_mi=48231.0, trip_mi=127.4, gps_fix=True)
+    r.draw_center_panel(canvas, state)
+    assert canvas.shape == (720, 1920, 3)
