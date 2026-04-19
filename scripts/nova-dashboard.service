@@ -8,7 +8,7 @@ Type=simple
 User=pi
 Environment=QT_QPA_PLATFORM=eglfs
 WorkingDirectory=/home/pi/nova-dashboard-cv
-ExecStartPre=/bin/bash /home/pi/nova-dashboard-cv/scripts/setup_can.sh
+ExecStartPre=-/bin/bash /home/pi/nova-dashboard-cv/scripts/setup_can.sh
 ExecStart=/home/pi/nova-dashboard-cv/.venv/bin/python3 /home/pi/nova-dashboard-cv/main.py
 Restart=always
 RestartSec=3
