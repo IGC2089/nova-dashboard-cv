@@ -7,7 +7,7 @@ def test_default_values():
     assert s.rpm == 0.0
     assert s.afr == 14.7
     assert s.gps_fix is False
-    assert s.trip_mi == 0.0
+    assert s.trip_km == 0.0
 
 
 def test_has_lock():
@@ -18,10 +18,10 @@ def test_has_lock():
 def test_snapshot_copies_values():
     s = VehicleState()
     s.rpm = 3400.0
-    s.clt_f = 195.0
+    s.clt_c = 92.0
     snap = s.snapshot()
     assert snap.rpm == 3400.0
-    assert snap.clt_f == 195.0
+    assert snap.clt_c == 92.0
 
 
 def test_snapshot_is_independent():

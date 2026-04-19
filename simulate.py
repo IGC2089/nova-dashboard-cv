@@ -31,13 +31,13 @@ def _simulate_state(state: VehicleState) -> None:
         t = time.monotonic()
         with state.lock:
             state.rpm       = 800 + 2600 * abs(math.sin(t * 0.3))
-            state.speed_mph = 30 + 50 * abs(math.sin(t * 0.2))
+            state.speed_kph = 50 + 80 * abs(math.sin(t * 0.2))
             state.map_kpa   = 60 + 40 * abs(math.sin(t * 0.4))
-            state.clt_f     = 185 + 30 * abs(math.sin(t * 0.05))
+            state.clt_c     = 85 + 15 * abs(math.sin(t * 0.05))
             state.afr       = 13.0 + 4.0 * abs(math.sin(t * 0.25))
             state.batt_v    = 13.8
-            state.odo_mi    = 48231 + t / 60.0
-            state.trip_mi   = t / 60.0
+            state.odo_km    = 77654 + t / 60.0
+            state.trip_km   = t / 60.0
             state.gps_fix   = True
         time.sleep(0.05)
 
@@ -77,7 +77,7 @@ def main() -> None:
         snap = state.snapshot()
 
         tach_target   = renderer.val_to_angle(snap.rpm,       'tachometer')
-        speedo_target = renderer.val_to_angle(snap.speed_mph, 'speedometer')
+        speedo_target = renderer.val_to_angle(snap.speed_kph, 'speedometer')
         interp['tach_angle']   += (tach_target   - interp['tach_angle'])   * tach_alpha
         interp['speedo_angle'] += (speedo_target - interp['speedo_angle']) * speedo_alpha
 

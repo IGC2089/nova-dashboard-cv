@@ -19,8 +19,7 @@ class SpeeduinoDecoder:
         map_kpa = data[2]
         tps_pct = data[3]
         iat_c = data[4] - 40
-        clt_c = data[5] - 40
-        clt_f = clt_c * 1.8 + 32
+        clt_c = float(data[5] - 40)
         afr = data[6] * 0.0068 * 14.7
         batt_v = data[7] * 0.1
         return {
@@ -28,7 +27,7 @@ class SpeeduinoDecoder:
             'map_kpa': float(map_kpa),
             'tps_pct': float(tps_pct),
             'iat_c':   float(iat_c),
-            'clt_f':   clt_f,
+            'clt_c':   clt_c,
             'afr':     afr,
             'batt_v':  batt_v,
         }

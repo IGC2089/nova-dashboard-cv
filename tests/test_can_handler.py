@@ -29,11 +29,10 @@ def test_decode_rpm():
     assert result['rpm'] == 3400.0
 
 
-def test_decode_clt_fahrenheit():
+def test_decode_clt_celsius():
     d = SpeeduinoDecoder()
     result = d.decode_0x320(_make_0x320(clt_c=90))
-    expected_f = 90 * 1.8 + 32
-    assert abs(result['clt_f'] - expected_f) < 0.01
+    assert abs(result['clt_c'] - 90.0) < 0.01
 
 
 def test_decode_afr_stoich():

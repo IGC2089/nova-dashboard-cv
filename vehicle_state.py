@@ -9,7 +9,7 @@ class VehicleState:
     # ECU signals
     rpm: float = 0.0
     map_kpa: float = 0.0
-    clt_f: float = 0.0
+    clt_c: float = 0.0
     afr: float = 14.7
     tps_pct: float = 0.0
     iat_c: float = 0.0
@@ -17,9 +17,9 @@ class VehicleState:
     ign_advance: float = 0.0
 
     # GPS signals
-    speed_mph: float = 0.0
-    odo_mi: float = 0.0
-    trip_mi: float = 0.0
+    speed_kph: float = 0.0
+    odo_km: float = 0.0
+    trip_km: float = 0.0
     gps_fix: bool = False
 
     # Threading (excluded from snapshot)
@@ -33,15 +33,15 @@ class VehicleState:
             return VehicleState(
                 rpm=self.rpm,
                 map_kpa=self.map_kpa,
-                clt_f=self.clt_f,
+                clt_c=self.clt_c,
                 afr=self.afr,
                 tps_pct=self.tps_pct,
                 iat_c=self.iat_c,
                 batt_v=self.batt_v,
                 ign_advance=self.ign_advance,
-                speed_mph=self.speed_mph,
-                odo_mi=self.odo_mi,
-                trip_mi=self.trip_mi,
+                speed_kph=self.speed_kph,
+                odo_km=self.odo_km,
+                trip_km=self.trip_km,
                 gps_fix=self.gps_fix,
                 lock=None,
             )

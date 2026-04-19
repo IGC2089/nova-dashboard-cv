@@ -82,7 +82,7 @@ def main() -> None:
             snap = state.snapshot()
 
             tach_target   = renderer.val_to_angle(snap.rpm,       'tachometer')
-            speedo_target = renderer.val_to_angle(snap.speed_mph, 'speedometer')
+            speedo_target = renderer.val_to_angle(snap.speed_kph, 'speedometer')
             interp['tach_angle']   += (tach_target   - interp['tach_angle'])   * tach_alpha
             interp['speedo_angle'] += (speedo_target - interp['speedo_angle']) * speedo_alpha
 

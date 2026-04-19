@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 ODO_PATH = '/data/odo.json'
 HACC_MAX_M = 10.0
-SAVE_INTERVAL_MI = 1.0  # Save every 1 mile (roughly every 60s at highway speed)
+SAVE_INTERVAL_KM = 1.6  # Save every ~1.6 km (roughly every 60s at highway speed)
 
 
 class OdometerAccumulator:
@@ -17,23 +17,23 @@ class OdometerAccumulator:
 
     def __init__(
         self,
-        initial_odo_mi: float = 0.0,
+        initial_odo_km: float = 0.0,
         save_callback: Optional[Callable[[float, float], None]] = None,
     ):
-        self.odo_mi: float = initial_odo_mi
-        self.trip_mi: float = 0.0
-        self._last_save_odo: float = initial_odo_mi
+        self.odo_km: float = initial_odo_km
+        self.trip_km: float = 0.0
+        self._last_save_odo: float = initial_odo_km
         self._save_cb = save_callback
 
-    def update(self, speed_mph: float, dt_s: float, hacc_m: float) -> bool:
+    def update(self, speed_kph: float, dt_s: float, hacc_m: float) -> bool:
         if hacc_m >= HACC_MAX_M:
             return False
-        delta_mi = speed_mph * (dt_s / 3600.0)
-        self.odo_mi += delta_mi
-        self.trip_mi += delta_mi
-        if self._save_cb and (self.odo_mi - self._last_save_odo) >= SAVE_INTERVAL_MI:
-            self._save_cb((self.odo_mi, self.trip_mi))
-            self._last_save_odo = self.odo_mi
+        delta_km = speed_kph * (dt_s / 3600.0)
+        self.odo_km += delta_km
+        self.trip_km += delta_km
+        if self._save_cb and (self.odo_km - self._last_save_odo) >= SAVE_INTERVAL_KM:
+            self._save_cb((self.odo_km, self.trip_km))
+            self._last_save_odo = self.odo_km
         return True
 
 
@@ -46,26 +46,22 @@ GPS_TIMEOUT_S = 5.0
 def _load_odo() -> float:
     try:
         with open(ODO_PATH) as f:
-            return float(json.load(f).get('odo_mi', 0.0))
+            return float(json.load(f).get('odo_km', 0.0))
     except (FileNotFoundError, json.JSONDecodeError, ValueError):
         return 0.0
 
 
 def _atomic_save(odo_data) -> None:
-    """Write ODO atomically. Power-safe via os.replace().
-
-    Accepts either a (odo_mi, trip_mi) tuple (from OdometerAccumulator callback)
-    or two positional floats for direct calls.
-    """
+    """Write ODO atomically. Power-safe via os.replace()."""
     if isinstance(odo_data, tuple):
-        odo_mi, trip_mi = odo_data
+        odo_km, trip_km = odo_data
     else:
-        odo_mi = odo_data
-        trip_mi = 0.0
+        odo_km = odo_data
+        trip_km = 0.0
     tmp = ODO_PATH + '.tmp'
     try:
         with open(tmp, 'w') as f:
-            json.dump({'odo_mi': odo_mi, 'trip_mi': trip_mi}, f)
+            json.dump({'odo_km': odo_km, 'trip_km': trip_km}, f)
         os.replace(tmp, ODO_PATH)
     except OSError as e:
         log.warning("ODO save failed: %s", e)
@@ -79,7 +75,7 @@ class GPSListener(threading.Thread):
         self._state = state
         self._running = False
         self._acc = OdometerAccumulator(
-            initial_odo_mi=_load_odo(),
+            initial_odo_km=_load_odo(),
             save_callback=_atomic_save,
         )
         self._last_fix_time = 0.0
@@ -109,9 +105,9 @@ class GPSListener(threading.Thread):
 
             speed_ms = getattr(report, 'speed', 0.0) or 0.0
             hacc_m = getattr(report, 'epx', 999.0) or 999.0
-            speed_mph = speed_ms * 2.23694
+            speed_kph = speed_ms * 3.6
 
-            fix_valid = self._acc.update(speed_mph, dt_s, hacc_m)
+            fix_valid = self._acc.update(speed_kph, dt_s, hacc_m)
             if fix_valid:
                 self._last_fix_time = now
 
@@ -119,12 +115,12 @@ class GPSListener(threading.Thread):
 
             with self._state.lock:
                 if fix_valid:
-                    self._state.speed_mph = speed_mph
-                self._state.odo_mi = self._acc.odo_mi
-                self._state.trip_mi = self._acc.trip_mi
+                    self._state.speed_kph = speed_kph
+                self._state.odo_km = self._acc.odo_km
+                self._state.trip_km = self._acc.trip_km
                 self._state.gps_fix = gps_ok
 
     def stop(self) -> None:
         self._running = False
-        _atomic_save((self._acc.odo_mi, self._acc.trip_mi))
+        _atomic_save((self._acc.odo_km, self._acc.trip_km))
         log.info("GPS listener stopped, ODO saved")

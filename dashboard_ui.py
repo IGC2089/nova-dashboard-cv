@@ -112,8 +112,8 @@ class GaugeRenderer:
         cv2.circle(canvas, (cx, cy + 78), 4, tuple(dot_color), -1, cv2.LINE_AA)
         self._put_centered_text(canvas, 'GPS', cx + 10, cy + 80,
                                 self._s['label_color'], font_scale=0.35)
-        for pct, label in [(0, '0'), (0.25, '40'), (0.5, '80'),
-                           (0.75, '120'), (1.0, '160')]:
+        for pct, label in [(0, '0'), (0.25, '60'), (0.5, '120'),
+                           (0.75, '180'), (1.0, '240')]:
             angle = cfg['start_angle'] + pct * cfg['sweep']
             lx, ly = self._angle_to_xy(cx, cy, cfg['radius'] + 10, angle)
             self._put_centered_text(canvas, label, lx, ly,
@@ -172,9 +172,9 @@ class GaugeRenderer:
 
     def _collect_warnings(self, state) -> list:
         warnings = []
-        if state.clt_f > 210:
+        if state.clt_c > 99:
             warnings.append(
-                (f"TEMP HIGH  {state.clt_f:.0f}F", self._s['warning_amber'])
+                (f"TEMP HIGH  {state.clt_c:.0f}C", self._s['warning_amber'])
             )
         if state.afr < 11.0:
             warnings.append(("RICH", self._s['warning_amber']))

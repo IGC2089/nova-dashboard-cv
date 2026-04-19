@@ -23,9 +23,9 @@ speedometer:
   start_angle:  150
   sweep:        240
   min_val:      0
-  max_val:      160
+  max_val:      240
   redzone_val:  null
-  label:        "MPH"
+  label:        "km/h"
   lerp_alpha:   0.10
 
 center_panel:
@@ -38,8 +38,8 @@ center_panel:
       font_scale:  0.9
 
     - label:       "CLT"
-      state_field: clt_f
-      unit:        "F"
+      state_field: clt_c
+      unit:        "C"
       pos:         [484, 110]
       format:      "{:.0f}"
       font_scale:  0.9
@@ -52,15 +52,15 @@ center_panel:
       font_scale:  1.8
 
     - label:       "ODO"
-      state_field: odo_mi
-      unit:        "mi"
+      state_field: odo_km
+      unit:        "km"
       pos:         [316, 385]
       format:      "{:.0f}"
       font_scale:  0.7
 
     - label:       "TRIP"
-      state_field: trip_mi
-      unit:        "mi"
+      state_field: trip_km
+      unit:        "km"
       pos:         [484, 385]
       format:      "{:.1f}"
       font_scale:  0.7
