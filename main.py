@@ -30,7 +30,7 @@ logging.basicConfig(
 )
 log = logging.getLogger('main')
 
-TARGET_FPS = 30
+TARGET_FPS = 60
 FRAME_TIME = 1.0 / TARGET_FPS
 WIDTH, HEIGHT = 800, 480
 

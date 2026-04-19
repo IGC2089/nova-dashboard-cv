@@ -22,7 +22,7 @@ from vehicle_state import VehicleState
 from dashboard_ui import GaugeRenderer
 from config_loader import load_style, load_gauges
 
-TARGET_FPS = 30
+TARGET_FPS = 60
 WIDTH, HEIGHT = 800, 480
 
 
