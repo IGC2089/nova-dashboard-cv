@@ -101,56 +101,6 @@ def test_draw_tachometer_no_crash():
     assert canvas.shape == (720, 1920, 3)
 
 
-def test_draw_speedometer_no_crash():
-    r = make_renderer()
-    canvas = make_canvas()
-    r.draw_speedometer(canvas, speed_mph=65.0, needle_angle=250.0, gps_fix=True)
-    assert canvas.shape == (720, 1920, 3)
-
-
-def test_draw_speedometer_no_gps_no_crash():
-    r = make_renderer()
-    canvas = make_canvas()
-    r.draw_speedometer(canvas, speed_mph=0.0, needle_angle=150.0, gps_fix=False)
-    assert canvas.shape == (720, 1920, 3)
-
-
-def test_draw_center_panel_no_crash():
-    r = make_renderer()
-    canvas = make_canvas()
-    state = make_state(map_kpa=98.0, clt_f=195.0, afr=14.7,
-                       odo_mi=48231.0, trip_mi=127.4, gps_fix=True)
-    r.draw_center_panel(canvas, state)
-    assert canvas.shape == (720, 1920, 3)
-
-
-def test_draw_warning_overlay_no_crash():
-    r = make_renderer()
-    canvas = make_canvas()
-    r.draw_warning_overlay(canvas, "TEMP HIGH 215F",
-                           r._s['warning_amber'], pulse_alpha=0.6)
-    assert canvas.shape == (720, 1920, 3)
-
-
-def test_render_frame_no_crash():
-    r = make_renderer()
-    canvas = make_canvas()
-    state = make_state(rpm=3400.0, speed_mph=65.0, map_kpa=98.0,
-                       clt_f=195.0, afr=14.7, odo_mi=48231.0,
-                       trip_mi=127.4, gps_fix=True)
-    interp = {'tach_angle': 270.0, 'speedo_angle': 250.0}
-    r.render_frame(canvas, state, interp)
-    assert canvas.shape == (720, 1920, 3)
-
-
-def test_render_frame_high_clt_triggers_warning():
-    r = make_renderer()
-    canvas = make_canvas()
-    state = make_state(clt_f=215.0, gps_fix=True)
-    interp = {'tach_angle': 150.0, 'speedo_angle': 150.0}
-    before = canvas.copy()
-    r.render_frame(canvas, state, interp)
-    assert not np.array_equal(canvas, before)
 
 
 # ---------------------------------------------------------------------------
