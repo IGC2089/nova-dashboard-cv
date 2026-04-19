@@ -160,7 +160,7 @@ class GaugeRenderer:
     def render_frame(self, canvas: np.ndarray, state, interp: dict) -> None:
         canvas[:] = tuple(self._s['bg_color'])
         self.draw_tachometer(canvas, state.rpm, interp['tach_angle'])
-        self.draw_speedometer(canvas, state.speed_mph,
+        self.draw_speedometer(canvas, state.speed_kph,
                               interp['speedo_angle'],
                               getattr(state, 'gps_fix', True))
         self.draw_center_panel(canvas, state)
