@@ -22,10 +22,10 @@ GAUGES = {
         'label': 'RPM', 'lerp_alpha': 0.15,
     },
     'speedometer': {
-        'center': [1440, 360], 'radius': 280, 'arc_width': 18,
+        'center': [640, 240], 'radius': 110, 'arc_width': 8,
         'start_angle': 150, 'sweep': 240,
-        'min_val': 0, 'max_val': 160, 'redzone_val': None,
-        'label': 'MPH', 'lerp_alpha': 0.10,
+        'min_val': 0, 'max_val': 240, 'redzone_val': None,
+        'label': 'km/h', 'lerp_alpha': 0.10,
     },
     'center_panel': {
         'readouts': [
@@ -220,3 +220,37 @@ def test_draw_tachometer_redzone_at_max():
     r.draw_tachometer(canvas, rpm=6000.0, needle_angle=max_angle)
     # arc_redzone is [0, 0, 255] — check for red channel > 200
     assert (canvas[:, :, 2] > 200).any()
+
+
+# ---------------------------------------------------------------------------
+# Task 6: draw_speedometer rewrite tests
+# ---------------------------------------------------------------------------
+
+def test_draw_speedometer_runs_without_error():
+    r = _make_renderer()
+    canvas = _blank_canvas()
+    r.draw_speedometer(canvas, speed_kph=100.0, needle_angle=270.0, gps_fix=True)
+
+
+def test_draw_speedometer_no_gps_shows_dashes():
+    r = _make_renderer()
+    canvas = _blank_canvas()
+    r.draw_speedometer(canvas, speed_kph=0.0, needle_angle=135.0, gps_fix=False)
+    assert canvas.max() > 0
+
+
+def test_draw_speedometer_no_redzone_arc():
+    """Speedometer has no redzone — no arc_redzone colored pixels expected."""
+    r = _make_renderer()
+    canvas = _blank_canvas()
+    max_angle = r.val_to_angle(240, 'speedometer')
+    r.draw_speedometer(canvas, speed_kph=240.0,
+                       needle_angle=max_angle, gps_fix=True)
+    # arc_redzone is BGR [0, 0, 255]: B~0, G~0, R~255
+    # Detect pixels that are purely red (redzone) vs needle/hub (which have G>100)
+    pure_red_pixels = (
+        (canvas[:, :, 2] > 200) &  # high R channel
+        (canvas[:, :, 1] < 20) &   # low G channel (eliminates needle_color [128,210,255])
+        (canvas[:, :, 0] < 20)     # low B channel
+    ).sum()
+    assert pure_red_pixels == 0  # no arc_redzone pixels at all

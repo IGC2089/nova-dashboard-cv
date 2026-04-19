@@ -200,38 +200,32 @@ class GaugeRenderer:
         sa = cfg['start_angle']
         ea = sa + cfg['sweep']
         axes = (r, r)
-        lc = tuple(self._s['label_color'])
+        w = cfg['arc_width']
 
-        # Arc track layers
-        cv2.ellipse(canvas, (cx, cy), axes, 0, sa, ea,
-                    tuple(self._s['arc_inactive']), 8, cv2.LINE_AA)
         active_angle = self.val_to_angle(speed_kph, 'speedometer')
+
+        # 1. Inactive full track
+        cv2.ellipse(canvas, (cx, cy), axes, 0, sa, ea,
+                    tuple(self._s['arc_inactive']), w, cv2.LINE_AA)
+
+        # 2. Active arc (cyan)
         cv2.ellipse(canvas, (cx, cy), axes, 0, sa, active_angle,
-                    tuple(self._s['arc_active']), 8, cv2.LINE_AA)
+                    tuple(self._s['arc_active']), w, cv2.LINE_AA)
 
-        # Outer and inner ring lines
-        cv2.ellipse(canvas, (cx, cy), (r + 2, r + 2), 0, sa, ea, lc, 1, cv2.LINE_AA)
-        cv2.ellipse(canvas, (cx, cy), (r - 10, r - 10), 0, sa, ea, lc, 1, cv2.LINE_AA)
+        # Tick marks from cache
+        for x1, y1, x2, y2, is_major in self._tick_cache['speedometer']:
+            color = tuple(self._s['value_color']) if is_major \
+                else tuple(self._s['label_color'])
+            thickness = 2 if is_major else 1
+            cv2.line(canvas, (x1, y1), (x2, y2), color, thickness, cv2.LINE_AA)
 
-        # Tick marks: 13 positions (0–240 in steps of 20)
-        for i in range(13):
-            pct = i / 12.0
-            angle_rad = math.radians(sa + pct * cfg['sweep'])
-            is_major = (i % 2 == 0)
-            r_out = r - 1
-            r_in  = r - 10 if is_major else r - 6
-            x1 = int(cx + r_out * math.cos(angle_rad))
-            y1 = int(cy + r_out * math.sin(angle_rad))
-            x2 = int(cx + r_in  * math.cos(angle_rad))
-            y2 = int(cy + r_in  * math.sin(angle_rad))
-            cv2.line(canvas, (x1, y1), (x2, y2), lc, 2 if is_major else 1, cv2.LINE_AA)
-
-        # Scale labels at major ticks: 0 40 80 120 160 200 240
+        # Scale labels at every 40 km/h for readability
         for i, label in enumerate(['0', '40', '80', '120', '160', '200', '240']):
-            pct = (i * 2) / 12.0
+            pct = (i * 40) / 240.0
             angle = sa + pct * cfg['sweep']
-            lx, ly = self._angle_to_xy(cx, cy, r + 14, angle)
-            self._put_centered_text(canvas, label, lx, ly, self._s['label_color'], font_scale=0.28)
+            lx, ly = self._angle_to_xy(cx, cy, r + 16, angle)
+            self._put_centered_text(canvas, label, lx, ly,
+                                    self._s['label_color'], font_scale=0.28)
 
         self._draw_tapered_needle(canvas, 'speedometer', needle_angle)
 
@@ -243,11 +237,12 @@ class GaugeRenderer:
             color = self._s['label_color']
         self._put_centered_text(canvas, speed_str, cx, cy + 38,
                                 color, font_scale=0.75, thickness=2)
-        self._put_centered_text(canvas, 'km/h', cx, cy + 54,
-                                self._s['label_color'], font_scale=0.32)
+        self._put_centered_text(canvas, 'km/h', cx, cy + 58,
+                                self._s['label_color'], font_scale=0.30)
+
         dot_color = self._s['arc_active'] if gps_fix else self._s['arc_redzone']
-        cv2.circle(canvas, (cx, cy + 68), 4, tuple(dot_color), -1, cv2.LINE_AA)
-        self._put_centered_text(canvas, 'GPS', cx + 10, cy + 70,
+        cv2.circle(canvas, (cx, cy + 72), 4, tuple(dot_color), -1, cv2.LINE_AA)
+        self._put_centered_text(canvas, 'GPS', cx + 10, cy + 74,
                                 self._s['label_color'], font_scale=0.3)
 
     def draw_readout(self, canvas: np.ndarray, label: str, value_str: str,
