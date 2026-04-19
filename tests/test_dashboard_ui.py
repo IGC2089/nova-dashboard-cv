@@ -78,7 +78,7 @@ def test_draw_arc_track_no_crash():
     assert canvas.shape == (720, 1920, 3)
 
 
-def test_draw_needle_no_crash():
+def test_draw_tapered_needle_no_crash():
     r = make_renderer()
     canvas = make_canvas()
     r._draw_tapered_needle(canvas, 'tachometer', needle_angle=270.0)

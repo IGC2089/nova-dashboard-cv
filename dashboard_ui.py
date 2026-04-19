@@ -111,10 +111,10 @@ class GaugeRenderer:
         # Tip triangle at 100% opacity (solid bright tip)
         mid_r = int(r * 0.60)
         mid   = (int(cx + mid_r * cos_a), int(cy + mid_r * sin_a))
-        ml    = (int(cx + (half_w * 0.4) * perp_cos),
-                 int(cy + (half_w * 0.4) * perp_sin))
-        mr    = (int(cx - (half_w * 0.4) * perp_cos),
-                 int(cy - (half_w * 0.4) * perp_sin))
+        ml    = (int(mid[0] + int(half_w * 0.4) * perp_cos),
+                 int(mid[1] + int(half_w * 0.4) * perp_sin))
+        mr    = (int(mid[0] - int(half_w * 0.4) * perp_cos),
+                 int(mid[1] - int(half_w * 0.4) * perp_sin))
         pts_tip = np.array([mid, ml, tip, mr], np.int32)
         cv2.fillPoly(canvas, [pts_tip], tuple(self._s['needle_color']))
 
