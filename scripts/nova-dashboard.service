@@ -6,8 +6,7 @@ Wants=gpsd.service
 [Service]
 Type=simple
 User=pi
-Environment=SDL_VIDEODRIVER=fbcon
-Environment=SDL_FBDEV=/dev/fb0
+Environment=SDL_VIDEODRIVER=kmsdrm
 Environment=SDL_NOMOUSE=1
 WorkingDirectory=/home/pi/nova-dashboard-cv
 ExecStartPre=-/bin/bash /home/pi/nova-dashboard-cv/scripts/setup_can.sh

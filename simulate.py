@@ -13,8 +13,7 @@ import numpy as np
 import cv2
 
 if not os.environ.get('DISPLAY'):
-    os.environ.setdefault('SDL_VIDEODRIVER', 'fbcon')
-    os.environ.setdefault('SDL_FBDEV', '/dev/fb0')
+    os.environ.setdefault('SDL_VIDEODRIVER', 'kmsdrm')
     os.environ.setdefault('SDL_NOMOUSE', '1')
 
 import pygame
