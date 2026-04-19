@@ -15,7 +15,7 @@ from config_loader import load_style, load_gauges
 
 TARGET_FPS = 60
 FRAME_TIME = 1.0 / TARGET_FPS
-WIDTH, HEIGHT = 1920, 720
+WIDTH, HEIGHT = 800, 480
 
 
 def _simulate_state(state: VehicleState) -> None:

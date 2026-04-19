@@ -58,9 +58,9 @@ class GaugeRenderer:
         tail = self._angle_to_xy(cx, cy, int(r * 0.15), needle_angle + 180)
         cv2.line(canvas, tail, tip,
                  tuple(self._s['needle_color']), 3, cv2.LINE_AA)
-        cv2.circle(canvas, (cx, cy), 14,
+        cv2.circle(canvas, (cx, cy), 7,
                    tuple(self._s['hub_color']), -1, cv2.LINE_AA)
-        cv2.circle(canvas, (cx, cy), 6,
+        cv2.circle(canvas, (cx, cy), 3,
                    tuple(self._s['arc_inactive']), -1, cv2.LINE_AA)
 
     def _put_centered_text(self, canvas: np.ndarray, text: str,
@@ -81,15 +81,15 @@ class GaugeRenderer:
         self._draw_arc_track(canvas, 'tachometer', active_angle)
         self._draw_needle(canvas, 'tachometer', needle_angle)
         rpm_str = f"{int(rpm):,}"
-        self._put_centered_text(canvas, rpm_str, cx, cy - 60,
-                                self._s['value_color'], font_scale=1.6, thickness=2)
-        self._put_centered_text(canvas, cfg['label'], cx, cy - 30,
-                                self._s['label_color'], font_scale=0.7)
+        self._put_centered_text(canvas, rpm_str, cx, cy - 25,
+                                self._s['value_color'], font_scale=0.8, thickness=2)
+        self._put_centered_text(canvas, cfg['label'], cx, cy - 10,
+                                self._s['label_color'], font_scale=0.4)
         for pct, label in [(0, '0'), (0.33, '2K'), (0.67, '4K'), (1.0, '6K')]:
             angle = cfg['start_angle'] + pct * cfg['sweep']
-            lx, ly = self._angle_to_xy(cx, cy, cfg['radius'] + 22, angle)
+            lx, ly = self._angle_to_xy(cx, cy, cfg['radius'] + 10, angle)
             self._put_centered_text(canvas, label, lx, ly,
-                                    self._s['label_color'], font_scale=0.5)
+                                    self._s['label_color'], font_scale=0.35)
 
     def draw_speedometer(self, canvas: np.ndarray, speed_mph: float,
                          needle_angle: float, gps_fix: bool) -> None:
@@ -104,32 +104,32 @@ class GaugeRenderer:
         else:
             speed_str = "---"
             color = self._s['label_color']
-        self._put_centered_text(canvas, speed_str, cx, cy - 60,
-                                color, font_scale=1.6, thickness=2)
-        self._put_centered_text(canvas, cfg['label'], cx, cy - 30,
-                                self._s['label_color'], font_scale=0.7)
+        self._put_centered_text(canvas, speed_str, cx, cy - 25,
+                                color, font_scale=0.8, thickness=2)
+        self._put_centered_text(canvas, cfg['label'], cx, cy - 10,
+                                self._s['label_color'], font_scale=0.4)
         dot_color = self._s['arc_active'] if gps_fix else self._s['arc_redzone']
-        cv2.circle(canvas, (cx, cy + 50), 6, tuple(dot_color), -1, cv2.LINE_AA)
-        self._put_centered_text(canvas, 'GPS', cx + 16, cy + 55,
-                                self._s['label_color'], font_scale=0.45)
+        cv2.circle(canvas, (cx, cy + 20), 4, tuple(dot_color), -1, cv2.LINE_AA)
+        self._put_centered_text(canvas, 'GPS', cx + 10, cy + 22,
+                                self._s['label_color'], font_scale=0.35)
         for pct, label in [(0, '0'), (0.25, '40'), (0.5, '80'),
                            (0.75, '120'), (1.0, '160')]:
             angle = cfg['start_angle'] + pct * cfg['sweep']
-            lx, ly = self._angle_to_xy(cx, cy, cfg['radius'] + 22, angle)
+            lx, ly = self._angle_to_xy(cx, cy, cfg['radius'] + 10, angle)
             self._put_centered_text(canvas, label, lx, ly,
-                                    self._s['label_color'], font_scale=0.5)
+                                    self._s['label_color'], font_scale=0.35)
 
     def draw_readout(self, canvas: np.ndarray, label: str, value_str: str,
                      unit: str, pos: list, font_scale: float) -> None:
         x, y = pos
-        self._put_centered_text(canvas, label, x, y - 28,
-                                self._s['label_color'], font_scale=0.55)
+        self._put_centered_text(canvas, label, x, y - 18,
+                                self._s['label_color'], font_scale=0.4)
         self._put_centered_text(canvas, value_str, x, y,
                                 self._s['value_color'], font_scale=font_scale,
                                 thickness=2)
         if unit:
-            self._put_centered_text(canvas, unit, x, y + 28,
-                                    self._s['label_color'], font_scale=0.5)
+            self._put_centered_text(canvas, unit, x, y + 16,
+                                    self._s['label_color'], font_scale=0.35)
 
     def draw_center_panel(self, canvas: np.ndarray, state) -> None:
         for rd in self._g['center_panel']['readouts']:
@@ -143,8 +143,8 @@ class GaugeRenderer:
             self.draw_readout(canvas, rd['label'], value_str, rd['unit'],
                               rd['pos'], rd['font_scale'])
         col = tuple(self._s['arc_inactive'])
-        cv2.line(canvas, (640, 40), (640, 680), col, 1)
-        cv2.line(canvas, (1280, 40), (1280, 680), col, 1)
+        cv2.line(canvas, (267, 20), (267, 460), col, 1)
+        cv2.line(canvas, (533, 20), (533, 460), col, 1)
 
     def draw_warning_overlay(self, canvas: np.ndarray, message: str,
                              color: list, pulse_alpha: float = 1.0) -> None:
@@ -154,7 +154,7 @@ class GaugeRenderer:
         cv2.rectangle(overlay, (0, 0), (w, h), tuple(color), -1)
         cv2.addWeighted(overlay, alpha, canvas, 1 - alpha, 0, canvas)
         self._put_centered_text(canvas, message, w // 2, h // 2,
-                                self._s['value_color'], font_scale=2.5, thickness=3)
+                                self._s['value_color'], font_scale=1.2, thickness=2)
 
     def render_frame(self, canvas: np.ndarray, state, interp: dict) -> None:
         canvas[:] = tuple(self._s['bg_color'])

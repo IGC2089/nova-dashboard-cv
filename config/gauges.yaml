@@ -2,11 +2,12 @@
 # Angles in degrees, clockwise from 3-o'clock (OpenCV convention).
 # start_angle=150 places 0-value at ~8 o'clock.
 # sweep=240 gives a 240-degree arc ending at ~4 o'clock.
+# Layout: 800x480 — left third [0-267], center [267-533], right [533-800]
 
 tachometer:
-  center:       [480, 360]
-  radius:       280
-  arc_width:    18
+  center:       [133, 240]
+  radius:       110
+  arc_width:    8
   start_angle:  150
   sweep:        240
   min_val:      0
@@ -16,9 +17,9 @@ tachometer:
   lerp_alpha:   0.15
 
 speedometer:
-  center:       [1440, 360]
-  radius:       280
-  arc_width:    18
+  center:       [667, 240]
+  radius:       110
+  arc_width:    8
   start_angle:  150
   sweep:        240
   min_val:      0
@@ -32,34 +33,34 @@ center_panel:
     - label:       "MAP"
       state_field: map_kpa
       unit:        "kPa"
-      pos:         [760, 160]
+      pos:         [316, 110]
       format:      "{:.0f}"
-      font_scale:  1.8
+      font_scale:  0.9
 
     - label:       "CLT"
       state_field: clt_f
       unit:        "F"
-      pos:         [1160, 160]
+      pos:         [484, 110]
       format:      "{:.0f}"
-      font_scale:  1.8
+      font_scale:  0.9
 
     - label:       "AFR"
       state_field: afr
       unit:        ""
-      pos:         [960, 360]
+      pos:         [400, 240]
       format:      "{:.1f}"
-      font_scale:  3.5
+      font_scale:  1.8
 
     - label:       "ODO"
       state_field: odo_mi
       unit:        "mi"
-      pos:         [760, 580]
+      pos:         [316, 385]
       format:      "{:.0f}"
-      font_scale:  1.4
+      font_scale:  0.7
 
     - label:       "TRIP"
       state_field: trip_mi
       unit:        "mi"
-      pos:         [1160, 580]
+      pos:         [484, 385]
       format:      "{:.1f}"
-      font_scale:  1.4
+      font_scale:  0.7
