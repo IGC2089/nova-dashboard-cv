@@ -17,7 +17,8 @@ RestartSec=3
 StandardOutput=null
 StandardError=journal
 KillMode=process
-TimeoutStopSec=5
+TimeoutStopSec=3
+KillMode=mixed
 
 [Install]
 WantedBy=multi-user.target
