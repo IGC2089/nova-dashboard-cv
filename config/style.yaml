@@ -1,13 +1,13 @@
 # config/style.yaml
 # All colors in BGR (Blue, Green, Red) — OpenCV convention.
 theme:
-  bg_color:       [1, 6, 8]
-  arc_active:     [0, 122, 196]
-  arc_inactive:   [0, 18, 26]
-  arc_redzone:    [0, 20, 140]
-  needle_color:   [128, 210, 255]
-  hub_color:      [0, 122, 196]
-  label_color:    [0, 66, 90]
-  value_color:    [128, 210, 255]
+  bg_color:       [10, 10, 10]
+  arc_active:     [255, 229, 0]
+  arc_inactive:   [40, 40, 40]
+  arc_redzone:    [0, 0, 255]
+  needle_color:   [255, 255, 255]
+  hub_color:      [255, 229, 0]
+  label_color:    [160, 160, 160]
+  value_color:    [255, 255, 255]
   warning_amber:  [0, 165, 255]
-  warning_red:    [0, 0, 220]
+  warning_red:    [0, 0, 255]
