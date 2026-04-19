@@ -1,8 +1,10 @@
 # main.py
 """Nova Dashboard — main entry point.
-Launches CAN and GPS daemon threads, then runs the 60 FPS OpenCV render loop.
+Launches CAN and GPS daemon threads, then runs the 60 FPS render loop.
+Writes frames directly to /dev/fb0 — no X11 or Qt required.
 """
 from __future__ import annotations
+import mmap
 import signal
 import sys
 import time
@@ -27,6 +29,26 @@ log = logging.getLogger('main')
 TARGET_FPS = 60
 FRAME_TIME = 1.0 / TARGET_FPS
 WIDTH, HEIGHT = 800, 480
+FB_DEVICE = '/dev/fb0'
+
+
+class Framebuffer:
+    """Write BGR numpy frames directly to the Linux framebuffer."""
+
+    def __init__(self, device: str, width: int, height: int):
+        self._fb = open(device, 'rb+')
+        self._width = width
+        self._height = height
+        self._mmap = mmap.mmap(self._fb.fileno(), width * height * 4)
+
+    def write(self, bgr_frame: np.ndarray) -> None:
+        bgra = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2BGRA)
+        self._mmap.seek(0)
+        self._mmap.write(bgra.tobytes())
+
+    def close(self) -> None:
+        self._mmap.close()
+        self._fb.close()
 
 
 def main() -> None:
@@ -56,11 +78,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _shutdown)
     signal.signal(signal.SIGINT, _shutdown)
 
-    cv2.namedWindow('Nova Dashboard', cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty('Nova Dashboard',
-                          cv2.WND_PROP_FULLSCREEN,
-                          cv2.WINDOW_FULLSCREEN)
-
+    fb = Framebuffer(FB_DEVICE, WIDTH, HEIGHT)
     canvas = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
     can_thread.start()
@@ -79,11 +97,7 @@ def main() -> None:
             interp['speedo_angle'] += (speedo_target - interp['speedo_angle']) * speedo_alpha
 
             renderer.render_frame(canvas, snap, interp)
-            cv2.imshow('Nova Dashboard', canvas)
-
-            key = cv2.waitKey(1) & 0xFF
-            if key in (ord('q'), 27):
-                running = False
+            fb.write(canvas)
 
             elapsed = time.monotonic() - frame_start
             sleep_time = FRAME_TIME - elapsed
@@ -96,7 +110,7 @@ def main() -> None:
         gps_thread.stop()
         can_thread.join(timeout=2.0)
         gps_thread.join(timeout=2.0)
-        cv2.destroyAllWindows()
+        fb.close()
         log.info("Clean shutdown complete")
 
 
