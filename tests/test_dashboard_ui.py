@@ -65,3 +65,21 @@ def test_val_to_angle_clamped_above_max():
 def test_val_to_angle_clamped_below_min():
     r = make_renderer()
     assert r.val_to_angle(-100, 'tachometer') >= 150.0
+
+
+def make_canvas():
+    return np.zeros((720, 1920, 3), dtype=np.uint8)
+
+
+def test_draw_arc_track_no_crash():
+    r = make_renderer()
+    canvas = make_canvas()
+    r._draw_arc_track(canvas, 'tachometer', active_angle=270.0)
+    assert canvas.shape == (720, 1920, 3)
+
+
+def test_draw_needle_no_crash():
+    r = make_renderer()
+    canvas = make_canvas()
+    r._draw_needle(canvas, 'tachometer', needle_angle=270.0)
+    assert canvas.shape == (720, 1920, 3)
