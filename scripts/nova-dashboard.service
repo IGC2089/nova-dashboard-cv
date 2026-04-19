@@ -1,0 +1,21 @@
+[Unit]
+Description=Nova Dashboard — 1974 Chevrolet Nova Instrument Cluster
+After=network.target gpsd.service
+Wants=gpsd.service
+
+[Service]
+Type=simple
+User=pi
+Environment=DISPLAY=:0
+WorkingDirectory=/home/pi/nova-dashboard-cv
+ExecStartPre=/bin/bash /home/pi/nova-dashboard-cv/scripts/setup_can.sh
+ExecStart=/home/pi/nova-dashboard-cv/.venv/bin/python3 /home/pi/nova-dashboard-cv/main.py
+Restart=always
+RestartSec=3
+StandardOutput=null
+StandardError=journal
+KillMode=process
+TimeoutStopSec=5
+
+[Install]
+WantedBy=graphical.target
