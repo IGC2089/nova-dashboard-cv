@@ -62,25 +62,31 @@ class CANListener(threading.Thread):
         self._running = False
 
     def run(self) -> None:
+        import time
         self._running = True
-        bus = can.interface.Bus(channel=self._channel, bustype='socketcan')
-        log.info("CAN listener started on %s", self._channel)
-        try:
-            while self._running:
-                msg = bus.recv(timeout=0.1)
-                if msg is None:
-                    continue
-                if msg.arbitration_id == CAN_ID_0:
-                    result = self._decoder.decode_0x320(bytes(msg.data))
-                    if result:
-                        self._apply(result)
-                elif msg.arbitration_id == CAN_ID_1:
-                    result = self._decoder.decode_0x321(bytes(msg.data))
-                    if result:
-                        self._apply(result)
-        finally:
-            bus.shutdown()
-            log.info("CAN listener stopped")
+        while self._running:
+            try:
+                bus = can.interface.Bus(channel=self._channel, bustype='socketcan')
+                log.info("CAN listener started on %s", self._channel)
+                try:
+                    while self._running:
+                        msg = bus.recv(timeout=0.1)
+                        if msg is None:
+                            continue
+                        if msg.arbitration_id == CAN_ID_0:
+                            result = self._decoder.decode_0x320(bytes(msg.data))
+                            if result:
+                                self._apply(result)
+                        elif msg.arbitration_id == CAN_ID_1:
+                            result = self._decoder.decode_0x321(bytes(msg.data))
+                            if result:
+                                self._apply(result)
+                finally:
+                    bus.shutdown()
+                    log.info("CAN listener stopped")
+            except OSError as e:
+                log.warning("CAN unavailable (%s) — retrying in 5s", e)
+                time.sleep(5)
 
     def stop(self) -> None:
         self._running = False
