@@ -1,23 +1,26 @@
 [Unit]
 Description=Nova Dashboard — 1974 Chevrolet Nova Instrument Cluster
-After=network.target gpsd.service
+After=local-fs.target network.target systemd-udev-settle.service gpsd.service
 Wants=gpsd.service
 
 [Service]
 Type=simple
 User=pi
+PAMName=login
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
 Environment=SDL_VIDEODRIVER=kmsdrm
 Environment=SDL_NOMOUSE=1
 WorkingDirectory=/home/pi/nova-dashboard-cv
+ExecStartPre=/bin/sleep 5
 ExecStartPre=-/bin/bash /home/pi/nova-dashboard-cv/scripts/setup_can.sh
 ExecStart=/home/pi/nova-dashboard-cv/.venv/bin/python3 /home/pi/nova-dashboard-cv/main.py
-Restart=always
-RestartSec=3
-StandardOutput=null
-StandardError=journal
-KillMode=process
-TimeoutStopSec=3
+Restart=on-failure
+RestartSec=5
 KillMode=mixed
+TimeoutStopSec=5
 
 [Install]
 WantedBy=multi-user.target
