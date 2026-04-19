@@ -6,6 +6,7 @@ Uses pygame with SDL fbcon backend for reliable Pi framebuffer display.
 from __future__ import annotations
 import os
 import signal
+import subprocess
 import sys
 import time
 import math
@@ -29,6 +30,16 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stderr)],
 )
 log = logging.getLogger('main')
+
+
+def _quit_plymouth() -> None:
+    """Signal Plymouth to fade out and release the display."""
+    try:
+        subprocess.run(['plymouth', 'quit', '--retain-splash'],
+                       timeout=2.0, check=False, capture_output=True)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
 
 TARGET_FPS = 60
 FRAME_TIME = 1.0 / TARGET_FPS
@@ -62,6 +73,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _shutdown)
     signal.signal(signal.SIGINT, _shutdown)
 
+    _quit_plymouth()
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
     pygame.mouse.set_visible(False)
