@@ -5,7 +5,7 @@ STYLE = {
     'bg_color':      [1, 6, 8],
     'arc_active':    [0, 122, 196],
     'arc_inactive':  [0, 18, 26],
-    'arc_redzone':   [0, 20, 140],
+    'arc_redzone':   [0, 0, 255],
     'needle_color':  [128, 210, 255],
     'hub_color':     [0, 122, 196],
     'label_color':   [0, 66, 90],
@@ -193,3 +193,30 @@ def test_tapered_needle_no_method_draw_needle():
     r = _make_renderer()
     assert not hasattr(r, '_draw_needle'), \
         "_draw_needle should be removed — use _draw_tapered_needle"
+
+
+# ---------------------------------------------------------------------------
+# Task 5: draw_tachometer rewrite tests
+# ---------------------------------------------------------------------------
+
+def test_draw_tachometer_runs_without_error():
+    r = _make_renderer()
+    canvas = _blank_canvas()
+    r.draw_tachometer(canvas, rpm=3000.0, needle_angle=225.0)
+
+
+def test_draw_tachometer_modifies_canvas():
+    r = _make_renderer()
+    canvas = _blank_canvas()
+    r.draw_tachometer(canvas, rpm=3000.0, needle_angle=225.0)
+    assert canvas.max() > 0
+
+
+def test_draw_tachometer_redzone_at_max():
+    """Canvas at max RPM must contain red pixels (redzone arc drawn)."""
+    r = _make_renderer()
+    canvas = _blank_canvas()
+    max_angle = r.val_to_angle(6000, 'tachometer')
+    r.draw_tachometer(canvas, rpm=6000.0, needle_angle=max_angle)
+    # arc_redzone is [0, 0, 255] — check for red channel > 200
+    assert (canvas[:, :, 2] > 200).any()

@@ -146,53 +146,51 @@ class GaugeRenderer:
         sa = cfg['start_angle']
         ea = sa + cfg['sweep']
         axes = (r, r)
-        lc = tuple(self._s['label_color'])
+        w = cfg['arc_width']
 
-        # Arc track layers
-        cv2.ellipse(canvas, (cx, cy), axes, 0, sa, ea,
-                    tuple(self._s['arc_inactive']), 8, cv2.LINE_AA)
         active_angle = self.val_to_angle(rpm, 'tachometer')
-        cv2.ellipse(canvas, (cx, cy), axes, 0, sa, active_angle,
-                    tuple(self._s['arc_active']), 8, cv2.LINE_AA)
         rz_angle = self.val_to_angle(cfg['redzone_val'], 'tachometer')
+
+        # 1. Inactive full track
+        cv2.ellipse(canvas, (cx, cy), axes, 0, sa, ea,
+                    tuple(self._s['arc_inactive']), w, cv2.LINE_AA)
+
+        # 2. Active arc (cyan)
+        cv2.ellipse(canvas, (cx, cy), axes, 0, sa, active_angle,
+                    tuple(self._s['arc_active']), w, cv2.LINE_AA)
+
+        # 3. Critical zone glow (wider, blended)
+        glow_overlay = canvas.copy()
+        cv2.ellipse(glow_overlay, (cx, cy), axes, 0, rz_angle, ea,
+                    tuple(self._s['arc_redzone']), w + 6, cv2.LINE_AA)
+        cv2.addWeighted(glow_overlay, 0.30, canvas, 0.70, 0, canvas)
+
+        # 4. Critical zone solid arc
         cv2.ellipse(canvas, (cx, cy), axes, 0, rz_angle, ea,
-                    tuple(self._s['arc_redzone']), 8, cv2.LINE_AA)
+                    tuple(self._s['arc_redzone']), w, cv2.LINE_AA)
 
-        # Outer and inner ring lines
-        cv2.ellipse(canvas, (cx, cy), (r + 2, r + 2), 0, sa, ea, lc, 1, cv2.LINE_AA)
-        cv2.ellipse(canvas, (cx, cy), (r - 10, r - 10), 0, sa, ea, lc, 1, cv2.LINE_AA)
-
-        # Tick marks: 13 positions (0–6000 in steps of 500)
-        for i in range(13):
-            pct = i / 12.0
-            angle_rad = math.radians(sa + pct * cfg['sweep'])
-            is_major = (i % 2 == 0)
-            r_out = r - 1
-            r_in  = r - 10 if is_major else r - 6
-            x1 = int(cx + r_out * math.cos(angle_rad))
-            y1 = int(cy + r_out * math.sin(angle_rad))
-            x2 = int(cx + r_in  * math.cos(angle_rad))
-            y2 = int(cy + r_in  * math.sin(angle_rad))
-            cv2.line(canvas, (x1, y1), (x2, y2), lc, 2 if is_major else 1, cv2.LINE_AA)
+        # Tick marks from cache
+        for x1, y1, x2, y2, is_major in self._tick_cache['tachometer']:
+            color = tuple(self._s['value_color']) if is_major \
+                else tuple(self._s['label_color'])
+            thickness = 2 if is_major else 1
+            cv2.line(canvas, (x1, y1), (x2, y2), color, thickness, cv2.LINE_AA)
 
         # Scale labels at major ticks: 0 10 20 30 40 50 60
         for i, label in enumerate(['0', '10', '20', '30', '40', '50', '60']):
-            pct = (i * 2) / 12.0
+            pct = (i * 1000) / 6000.0
             angle = sa + pct * cfg['sweep']
-            lx, ly = self._angle_to_xy(cx, cy, r + 14, angle)
-            self._put_centered_text(canvas, label, lx, ly, self._s['label_color'], font_scale=0.28)
+            lx, ly = self._angle_to_xy(cx, cy, r + 16, angle)
+            self._put_centered_text(canvas, label, lx, ly,
+                                    self._s['label_color'], font_scale=0.32)
 
         self._draw_tapered_needle(canvas, 'tachometer', needle_angle)
 
         rpm_str = f"{int(rpm):,}"
         self._put_centered_text(canvas, rpm_str, cx, cy + 38,
                                 self._s['value_color'], font_scale=0.75, thickness=2)
-        self._put_centered_text(canvas, 'ENGINE', cx, cy + 54,
-                                self._s['label_color'], font_scale=0.32)
-        self._put_centered_text(canvas, 'RPM', cx, cy + 64,
-                                self._s['label_color'], font_scale=0.32)
-        self._put_centered_text(canvas, 'x100', cx, cy + 76,
-                                self._s['label_color'], font_scale=0.28)
+        self._put_centered_text(canvas, 'RPM', cx, cy + 58,
+                                self._s['label_color'], font_scale=0.30)
 
     def draw_speedometer(self, canvas: np.ndarray, speed_kph: float,
                          needle_angle: float, gps_fix: bool) -> None:
