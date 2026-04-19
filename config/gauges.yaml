@@ -1,15 +1,15 @@
 # config/gauges.yaml
 # Angles in degrees, clockwise from 3-o'clock (OpenCV convention).
-# start_angle=150 places 0-value at ~8 o'clock.
-# sweep=240 gives a 240-degree arc ending at ~4 o'clock.
+# start_angle=135 places 0-value at ~7 o'clock.
+# sweep=270 gives a 270-degree arc ending at ~5 o'clock (Audi/BMW orientation).
 # Layout: 800x480 — left third [0-267], center [267-533], right [533-800]
 
 tachometer:
   center:       [133, 240]
   radius:       110
-  arc_width:    8
-  start_angle:  150
-  sweep:        240
+  arc_width:    4
+  start_angle:  135
+  sweep:        270
   min_val:      0
   max_val:      6000
   redzone_val:  4500
@@ -19,9 +19,9 @@ tachometer:
 speedometer:
   center:       [667, 240]
   radius:       110
-  arc_width:    8
-  start_angle:  150
-  sweep:        240
+  arc_width:    4
+  start_angle:  135
+  sweep:        270
   min_val:      0
   max_val:      240
   redzone_val:  null
@@ -30,37 +30,51 @@ speedometer:
 
 center_panel:
   readouts:
+    - label:       "BATT"
+      state_field: batt_v
+      unit:        "V"
+      pos:         [316, 75]
+      format:      "{:.1f}"
+      font_scale:  0.9
+
+    - label:       "IGN"
+      state_field: ign_advance
+      unit:        "deg"
+      pos:         [484, 75]
+      format:      "{:.1f}"
+      font_scale:  0.9
+
     - label:       "MAP"
       state_field: map_kpa
       unit:        "kPa"
-      pos:         [316, 110]
+      pos:         [316, 175]
       format:      "{:.0f}"
       font_scale:  0.9
 
     - label:       "CLT"
       state_field: clt_c
       unit:        "C"
-      pos:         [484, 110]
+      pos:         [484, 175]
       format:      "{:.0f}"
       font_scale:  0.9
 
     - label:       "AFR"
       state_field: afr
       unit:        ""
-      pos:         [400, 240]
+      pos:         [400, 275]
       format:      "{:.1f}"
       font_scale:  1.8
 
     - label:       "ODO"
       state_field: odo_km
       unit:        "km"
-      pos:         [316, 385]
+      pos:         [316, 400]
       format:      "{:.0f}"
       font_scale:  0.7
 
     - label:       "TRIP"
       state_field: trip_km
       unit:        "km"
-      pos:         [484, 385]
+      pos:         [484, 400]
       format:      "{:.1f}"
       font_scale:  0.7
