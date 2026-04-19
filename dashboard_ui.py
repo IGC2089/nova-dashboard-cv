@@ -155,8 +155,8 @@ class GaugeRenderer:
         cv2.ellipse(canvas, (cx, cy), axes, 0, sa, ea,
                     tuple(self._s['arc_inactive']), w, cv2.LINE_AA)
 
-        # 2. Active arc (cyan)
-        cv2.ellipse(canvas, (cx, cy), axes, 0, sa, active_angle,
+        # 2. Active arc (cyan) — clamped to redzone boundary
+        cv2.ellipse(canvas, (cx, cy), axes, 0, sa, min(active_angle, rz_angle),
                     tuple(self._s['arc_active']), w, cv2.LINE_AA)
 
         # 3. Critical zone glow (wider, blended)
