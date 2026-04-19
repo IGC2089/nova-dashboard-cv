@@ -147,15 +147,20 @@ class GaugeRenderer:
         cv2.line(canvas, (267, 20), (267, 460), col, 1)
         cv2.line(canvas, (533, 20), (533, 460), col, 1)
 
-    def draw_warning_overlay(self, canvas: np.ndarray, message: str,
-                             color: list, pulse_alpha: float = 1.0) -> None:
-        overlay = canvas.copy()
-        h, w = canvas.shape[:2]
-        alpha = 0.35 * pulse_alpha
-        cv2.rectangle(overlay, (0, 0), (w, h), tuple(color), -1)
-        cv2.addWeighted(overlay, alpha, canvas, 1 - alpha, 0, canvas)
-        self._put_centered_text(canvas, message, w // 2, h // 2,
-                                self._s['value_color'], font_scale=1.2, thickness=2)
+    def draw_warning_icon(self, canvas: np.ndarray, cx: int, cy: int,
+                          label: str, color: list, pulse: float = 1.0) -> None:
+        """Draw a small check-engine style warning triangle with label below."""
+        r = 16
+        brightness = max(0.25, pulse)
+        c = tuple(int(v * brightness) for v in color)
+        pts = np.array([[cx, cy - r], [cx - r, cy + r], [cx + r, cy + r]], np.int32)
+        cv2.fillPoly(canvas, [pts], c)
+        cv2.polylines(canvas, [pts], True, tuple(color), 1, cv2.LINE_AA)
+        cv2.putText(canvas, '!', (cx - 4, cy + r - 3),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                    tuple(self._s['bg_color']), 2, cv2.LINE_AA)
+        self._put_centered_text(canvas, label, cx, cy + r + 12,
+                                color, font_scale=0.35)
 
     def render_frame(self, canvas: np.ndarray, state, interp: dict) -> None:
         canvas[:] = tuple(self._s['bg_color'])
@@ -166,18 +171,21 @@ class GaugeRenderer:
         self.draw_center_panel(canvas, state)
         warnings = self._collect_warnings(state)
         pulse = abs(math.sin(time.monotonic() * 2.5))
-        for i, (msg, color) in enumerate(warnings):
-            self.draw_warning_overlay(canvas, msg, color,
-                                      pulse_alpha=pulse if i == 0 else 0.8)
+        total = len(warnings)
+        for i, (label, color) in enumerate(warnings):
+            offset = (i - (total - 1) / 2) * 70
+            self.draw_warning_icon(canvas, int(400 + offset), 435,
+                                   label, color,
+                                   pulse=pulse if i == 0 else 1.0)
 
     def _collect_warnings(self, state) -> list:
         warnings = []
         if state.clt_c > 99:
             warnings.append(
-                (f"TEMP HIGH  {state.clt_c:.0f}C", self._s['warning_amber'])
+                (f"{state.clt_c:.0f}C", self._s['warning_amber'])
             )
         if state.afr < 11.0:
             warnings.append(("RICH", self._s['warning_amber']))
         elif state.afr > 16.5:
-            warnings.append(("LEAN  CHECK ENGINE", self._s['warning_red']))
+            warnings.append(("LEAN", self._s['warning_red']))
         return warnings
