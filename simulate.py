@@ -1,26 +1,30 @@
 # simulate.py
 """Run the dashboard with simulated data. No hardware required.
-On Pi (no display): writes directly to /dev/fb0.
-On desktop: falls back to cv2.imshow window.
+On Pi (no DISPLAY): uses pygame SDL fbcon -> /dev/fb0.
+On desktop (DISPLAY set): uses pygame window.
 Usage: python simulate.py
 """
 from __future__ import annotations
-import mmap
-import math
 import os
+import math
 import time
 import threading
 import numpy as np
 import cv2
+
+if not os.environ.get('DISPLAY'):
+    os.environ.setdefault('SDL_VIDEODRIVER', 'fbcon')
+    os.environ.setdefault('SDL_FBDEV', '/dev/fb0')
+    os.environ.setdefault('SDL_NOMOUSE', '1')
+
+import pygame
 
 from vehicle_state import VehicleState
 from dashboard_ui import GaugeRenderer
 from config_loader import load_style, load_gauges
 
 TARGET_FPS = 30
-FRAME_TIME = 1.0 / TARGET_FPS
 WIDTH, HEIGHT = 800, 480
-FB_DEVICE = '/dev/fb0'
 
 
 def _simulate_state(state: VehicleState) -> None:
@@ -55,46 +59,39 @@ def main() -> None:
     tach_alpha   = gauges['tachometer']['lerp_alpha']
     speedo_alpha = gauges['speedometer']['lerp_alpha']
 
+    pygame.init()
+    flags = pygame.FULLSCREEN if not os.environ.get('DISPLAY') else 0
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), flags)
+    pygame.mouse.set_visible(False)
+    clock = pygame.time.Clock()
+
     canvas = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
-    use_fb = os.path.exists(FB_DEVICE) and not os.environ.get('DISPLAY')
-    if use_fb:
-        fb_file = open(FB_DEVICE, 'rb+')
-        mm = mmap.mmap(fb_file.fileno(), WIDTH * HEIGHT * 4)
-        fb_buf = np.frombuffer(mm, dtype=np.uint8).reshape(HEIGHT, WIDTH, 4)
-        print(f"Rendering to {FB_DEVICE}")
-    else:
-        cv2.namedWindow('Nova Dashboard — SIMULATION', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('Nova Dashboard — SIMULATION', WIDTH, HEIGHT)
-        print("Rendering to window")
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_q, pygame.K_ESCAPE):
+                running = False
 
-    try:
-        while True:
-            frame_start = time.monotonic()
-            snap = state.snapshot()
+        snap = state.snapshot()
 
-            tach_target   = renderer.val_to_angle(snap.rpm,       'tachometer')
-            speedo_target = renderer.val_to_angle(snap.speed_mph, 'speedometer')
-            interp['tach_angle']   += (tach_target   - interp['tach_angle'])   * tach_alpha
-            interp['speedo_angle'] += (speedo_target - interp['speedo_angle']) * speedo_alpha
+        tach_target   = renderer.val_to_angle(snap.rpm,       'tachometer')
+        speedo_target = renderer.val_to_angle(snap.speed_mph, 'speedometer')
+        interp['tach_angle']   += (tach_target   - interp['tach_angle'])   * tach_alpha
+        interp['speedo_angle'] += (speedo_target - interp['speedo_angle']) * speedo_alpha
 
-            renderer.render_frame(canvas, snap, interp)
+        renderer.render_frame(canvas, snap, interp)
 
-            if use_fb:
-                cv2.cvtColor(canvas, cv2.COLOR_BGR2BGRA, dst=fb_buf)
-            else:
-                cv2.imshow('Nova Dashboard — SIMULATION', canvas)
-                if cv2.waitKey(1) & 0xFF in (ord('q'), 27):
-                    break
+        rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
+        surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))
+        screen.blit(surf, (0, 0))
+        pygame.display.flip()
 
-            elapsed = time.monotonic() - frame_start
-            time.sleep(max(0.005, FRAME_TIME - elapsed))
-    finally:
-        if use_fb:
-            mm.close()
-            fb_file.close()
-        else:
-            cv2.destroyAllWindows()
+        clock.tick(TARGET_FPS)
+
+    pygame.quit()
 
 
 if __name__ == '__main__':

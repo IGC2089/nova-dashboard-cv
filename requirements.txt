@@ -3,3 +3,4 @@ python-can>=4.4.0
 numpy>=1.26.0
 gpsd-py3>=0.3.0
 PyYAML>=6.0.2
+pygame>=2.5.0

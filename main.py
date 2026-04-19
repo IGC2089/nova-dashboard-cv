@@ -1,10 +1,10 @@
 # main.py
 """Nova Dashboard — main entry point.
-Launches CAN and GPS daemon threads, then runs the 60 FPS render loop.
-Writes frames directly to /dev/fb0 — no X11 or Qt required.
+Launches CAN and GPS daemon threads, then runs the 30 FPS render loop.
+Uses pygame with SDL fbcon backend for reliable Pi framebuffer display.
 """
 from __future__ import annotations
-import mmap
+import os
 import signal
 import sys
 import time
@@ -12,6 +12,11 @@ import math
 import logging
 import numpy as np
 import cv2
+
+os.environ.setdefault('SDL_VIDEODRIVER', 'fbcon')
+os.environ.setdefault('SDL_FBDEV', '/dev/fb0')
+os.environ.setdefault('SDL_NOMOUSE', '1')
+import pygame
 
 from vehicle_state import VehicleState
 from can_handler import CANListener
@@ -29,22 +34,6 @@ log = logging.getLogger('main')
 TARGET_FPS = 30
 FRAME_TIME = 1.0 / TARGET_FPS
 WIDTH, HEIGHT = 800, 480
-FB_DEVICE = '/dev/fb0'
-
-
-class Framebuffer:
-    """Zero-copy BGR frame writer — maps /dev/fb0 as a numpy array."""
-
-    def __init__(self, device: str, width: int, height: int):
-        self._fb = open(device, 'rb+')
-        mm = mmap.mmap(self._fb.fileno(), width * height * 4)
-        self._buf = np.frombuffer(mm, dtype=np.uint8).reshape(height, width, 4)
-
-    def write(self, bgr_frame: np.ndarray) -> None:
-        cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2BGRA, dst=self._buf)
-
-    def close(self) -> None:
-        self._fb.close()
 
 
 def main() -> None:
@@ -74,7 +63,11 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _shutdown)
     signal.signal(signal.SIGINT, _shutdown)
 
-    fb = Framebuffer(FB_DEVICE, WIDTH, HEIGHT)
+    pygame.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+    pygame.mouse.set_visible(False)
+    clock = pygame.time.Clock()
+
     canvas = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
     can_thread.start()
@@ -83,7 +76,9 @@ def main() -> None:
 
     try:
         while running:
-            frame_start = time.monotonic()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
 
             snap = state.snapshot()
 
@@ -93,10 +88,13 @@ def main() -> None:
             interp['speedo_angle'] += (speedo_target - interp['speedo_angle']) * speedo_alpha
 
             renderer.render_frame(canvas, snap, interp)
-            fb.write(canvas)
 
-            elapsed = time.monotonic() - frame_start
-            time.sleep(max(0.005, FRAME_TIME - elapsed))
+            rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
+            surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))
+            screen.blit(surf, (0, 0))
+            pygame.display.flip()
+
+            clock.tick(TARGET_FPS)
 
     finally:
         log.info("Stopping threads...")
@@ -104,7 +102,7 @@ def main() -> None:
         gps_thread.stop()
         can_thread.join(timeout=2.0)
         gps_thread.join(timeout=2.0)
-        fb.close()
+        pygame.quit()
         log.info("Clean shutdown complete")
 
 
