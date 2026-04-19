@@ -88,8 +88,7 @@ def main() -> None:
                     break
 
             elapsed = time.monotonic() - frame_start
-            if FRAME_TIME - elapsed > 0:
-                time.sleep(FRAME_TIME - elapsed)
+            time.sleep(max(0.005, FRAME_TIME - elapsed))
     finally:
         if use_fb:
             mm.close()

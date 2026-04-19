@@ -96,9 +96,7 @@ def main() -> None:
             fb.write(canvas)
 
             elapsed = time.monotonic() - frame_start
-            sleep_time = FRAME_TIME - elapsed
-            if sleep_time > 0:
-                time.sleep(sleep_time)
+            time.sleep(max(0.005, FRAME_TIME - elapsed))
 
     finally:
         log.info("Stopping threads...")
