@@ -145,3 +145,38 @@ class GaugeRenderer:
         col = tuple(self._s['arc_inactive'])
         cv2.line(canvas, (640, 40), (640, 680), col, 1)
         cv2.line(canvas, (1280, 40), (1280, 680), col, 1)
+
+    def draw_warning_overlay(self, canvas: np.ndarray, message: str,
+                             color: list, pulse_alpha: float = 1.0) -> None:
+        overlay = canvas.copy()
+        h, w = canvas.shape[:2]
+        alpha = 0.35 * pulse_alpha
+        cv2.rectangle(overlay, (0, 0), (w, h), tuple(color), -1)
+        cv2.addWeighted(overlay, alpha, canvas, 1 - alpha, 0, canvas)
+        self._put_centered_text(canvas, message, w // 2, h // 2,
+                                self._s['value_color'], font_scale=2.5, thickness=3)
+
+    def render_frame(self, canvas: np.ndarray, state, interp: dict) -> None:
+        canvas[:] = tuple(self._s['bg_color'])
+        self.draw_tachometer(canvas, state.rpm, interp['tach_angle'])
+        self.draw_speedometer(canvas, state.speed_mph,
+                              interp['speedo_angle'],
+                              getattr(state, 'gps_fix', True))
+        self.draw_center_panel(canvas, state)
+        warnings = self._collect_warnings(state)
+        pulse = abs(math.sin(time.monotonic() * 2.5))
+        for i, (msg, color) in enumerate(warnings):
+            self.draw_warning_overlay(canvas, msg, color,
+                                      pulse_alpha=pulse if i == 0 else 0.8)
+
+    def _collect_warnings(self, state) -> list:
+        warnings = []
+        if state.clt_f > 210:
+            warnings.append(
+                (f"TEMP HIGH  {state.clt_f:.0f}F", self._s['warning_amber'])
+            )
+        if state.afr < 11.0:
+            warnings.append(("RICH", self._s['warning_amber']))
+        elif state.afr > 16.5:
+            warnings.append(("LEAN  CHECK ENGINE", self._s['warning_red']))
+        return warnings
