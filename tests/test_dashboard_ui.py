@@ -81,7 +81,7 @@ def test_draw_arc_track_no_crash():
 def test_draw_needle_no_crash():
     r = make_renderer()
     canvas = make_canvas()
-    r._draw_needle(canvas, 'tachometer', needle_angle=270.0)
+    r._draw_tapered_needle(canvas, 'tachometer', needle_angle=270.0)
     assert canvas.shape == (720, 1920, 3)
 
 
@@ -162,3 +162,34 @@ def test_tick_cache_entry_structure():
     # Each entry: (x1, y1, x2, y2, is_major)
     assert len(entry) == 5
     assert isinstance(entry[4], bool)
+
+
+# ---------------------------------------------------------------------------
+# Task 4: _draw_tapered_needle tests
+# ---------------------------------------------------------------------------
+
+def _make_renderer():
+    return GaugeRenderer(STYLE, GAUGES)
+
+
+def _blank_canvas():
+    return np.zeros((480, 800, 3), dtype=np.uint8)
+
+
+def test_tapered_needle_draws_without_error():
+    r = _make_renderer()
+    canvas = _blank_canvas()
+    r._draw_tapered_needle(canvas, 'tachometer', 135.0)
+
+
+def test_tapered_needle_modifies_canvas():
+    r = _make_renderer()
+    canvas = _blank_canvas()
+    r._draw_tapered_needle(canvas, 'tachometer', 200.0)
+    assert canvas.max() > 0
+
+
+def test_tapered_needle_no_method_draw_needle():
+    r = _make_renderer()
+    assert not hasattr(r, '_draw_needle'), \
+        "_draw_needle should be removed — use _draw_tapered_needle"

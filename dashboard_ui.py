@@ -83,19 +83,50 @@ class GaugeRenderer:
             cv2.ellipse(canvas, (cx, cy), axes, 0, redzone_angle, ea,
                         tuple(self._s['arc_redzone']), w, cv2.LINE_AA)
 
-    def _draw_needle(self, canvas: np.ndarray, gauge_name: str,
-                     needle_angle: float) -> None:
+    def _draw_tapered_needle(self, canvas: np.ndarray, gauge_name: str,
+                             needle_angle: float) -> None:
         cfg = self._g[gauge_name]
         cx, cy = cfg['center']
         r = cfg['radius']
-        tip  = self._angle_to_xy(cx, cy, int(r * 0.88), needle_angle)
-        tail = self._angle_to_xy(cx, cy, int(r * 0.15), needle_angle + 180)
-        cv2.line(canvas, tail, tip,
-                 tuple(self._s['needle_color']), 3, cv2.LINE_AA)
-        cv2.circle(canvas, (cx, cy), 7,
+        rad = math.radians(needle_angle)
+        cos_a, sin_a = math.cos(rad), math.sin(rad)
+        perp_cos = math.cos(rad + math.pi / 2)
+        perp_sin = math.sin(rad + math.pi / 2)
+
+        tip_r   = int(r * 0.88)
+        tail_r  = int(r * 0.15)
+        half_w  = 2  # half-width at pivot (pixels)
+
+        tip   = (int(cx + tip_r  * cos_a), int(cy + tip_r  * sin_a))
+        tail  = (int(cx - tail_r * cos_a), int(cy - tail_r * sin_a))
+        pl    = (int(cx + half_w * perp_cos), int(cy + half_w * perp_sin))
+        pr    = (int(cx - half_w * perp_cos), int(cy - half_w * perp_sin))
+
+        # Full wedge at 40% opacity (semi-transparent base)
+        overlay = canvas.copy()
+        pts_full = np.array([tail, pl, tip, pr], np.int32)
+        cv2.fillPoly(overlay, [pts_full], tuple(self._s['needle_color']))
+        cv2.addWeighted(overlay, 0.4, canvas, 0.6, 0, canvas)
+
+        # Tip triangle at 100% opacity (solid bright tip)
+        mid_r = int(r * 0.60)
+        mid   = (int(cx + mid_r * cos_a), int(cy + mid_r * sin_a))
+        ml    = (int(cx + (half_w * 0.4) * perp_cos),
+                 int(cy + (half_w * 0.4) * perp_sin))
+        mr    = (int(cx - (half_w * 0.4) * perp_cos),
+                 int(cy - (half_w * 0.4) * perp_sin))
+        pts_tip = np.array([mid, ml, tip, mr], np.int32)
+        cv2.fillPoly(canvas, [pts_tip], tuple(self._s['needle_color']))
+
+        # Tail counterweight
+        cv2.line(canvas, (cx, cy), tail,
+                 tuple(self._s['label_color']), 2, cv2.LINE_AA)
+
+        # Hub
+        cv2.circle(canvas, (cx, cy), 6,
                    tuple(self._s['hub_color']), -1, cv2.LINE_AA)
         cv2.circle(canvas, (cx, cy), 3,
-                   tuple(self._s['arc_inactive']), -1, cv2.LINE_AA)
+                   tuple(self._s['bg_color']), -1, cv2.LINE_AA)
 
     def _put_centered_text(self, canvas: np.ndarray, text: str,
                            cx: int, cy: int, color: list,
@@ -151,7 +182,7 @@ class GaugeRenderer:
             lx, ly = self._angle_to_xy(cx, cy, r + 14, angle)
             self._put_centered_text(canvas, label, lx, ly, self._s['label_color'], font_scale=0.28)
 
-        self._draw_needle(canvas, 'tachometer', needle_angle)
+        self._draw_tapered_needle(canvas, 'tachometer', needle_angle)
 
         rpm_str = f"{int(rpm):,}"
         self._put_centered_text(canvas, rpm_str, cx, cy + 38,
@@ -204,7 +235,7 @@ class GaugeRenderer:
             lx, ly = self._angle_to_xy(cx, cy, r + 14, angle)
             self._put_centered_text(canvas, label, lx, ly, self._s['label_color'], font_scale=0.28)
 
-        self._draw_needle(canvas, 'speedometer', needle_angle)
+        self._draw_tapered_needle(canvas, 'speedometer', needle_angle)
 
         if gps_fix:
             speed_str = f"{int(speed_kph)}"
