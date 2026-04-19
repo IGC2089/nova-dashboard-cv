@@ -15,6 +15,40 @@ class GaugeRenderer:
     def __init__(self, style: dict, gauges: dict):
         self._s = style
         self._g = gauges
+        self._tick_cache = self._build_tick_cache()
+
+    def _build_tick_cache(self) -> dict:
+        cache = {}
+        specs = {
+            'tachometer': {'step': 250, 'major_every': 1000},
+            'speedometer': {'step': 10,  'major_every': 20},
+        }
+        for name, spec in specs.items():
+            cfg = self._g[name]
+            cx, cy = cfg['center']
+            r = cfg['radius']
+            sa = cfg['start_angle']
+            sw = cfg['sweep']
+            mn, mx = cfg['min_val'], cfg['max_val']
+            step = spec['step']
+            major_every = spec['major_every']
+            entries = []
+            val = mn
+            while val <= mx + 1e-6:
+                pct = (val - mn) / (mx - mn)
+                angle_rad = math.radians(sa + pct * sw)
+                cos_a, sin_a = math.cos(angle_rad), math.sin(angle_rad)
+                is_major = (round(val) % major_every == 0)
+                r_out = r - 1
+                r_in = r - (12 if is_major else 6)
+                x1 = int(cx + r_out * cos_a)
+                y1 = int(cy + r_out * sin_a)
+                x2 = int(cx + r_in  * cos_a)
+                y2 = int(cy + r_in  * sin_a)
+                entries.append((x1, y1, x2, y2, is_major))
+                val += step
+            cache[name] = entries
+        return cache
 
     def val_to_angle(self, value: float, gauge_name: str) -> float:
         """Map value to needle angle (degrees, clockwise from 3-o'clock). Clamps to range."""

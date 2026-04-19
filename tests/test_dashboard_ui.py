@@ -151,3 +151,64 @@ def test_render_frame_high_clt_triggers_warning():
     before = canvas.copy()
     r.render_frame(canvas, state, interp)
     assert not np.array_equal(canvas, before)
+
+
+# ---------------------------------------------------------------------------
+# Task 3: tick-position cache tests
+# These use a minimal GAUGES fixture that matches the tick-cache spec exactly.
+# ---------------------------------------------------------------------------
+
+_TICK_STYLE = {
+    'bg_color': [10, 10, 10],
+    'arc_active': [255, 229, 0],
+    'arc_inactive': [40, 40, 40],
+    'arc_redzone': [0, 0, 255],
+    'needle_color': [255, 255, 255],
+    'hub_color': [255, 229, 0],
+    'label_color': [160, 160, 160],
+    'value_color': [255, 255, 255],
+    'warning_amber': [0, 165, 255],
+    'warning_red': [0, 0, 255],
+}
+
+_TICK_GAUGES = {
+    'tachometer': {
+        'center': [133, 240], 'radius': 110, 'arc_width': 4,
+        'start_angle': 135, 'sweep': 270,
+        'min_val': 0, 'max_val': 6000, 'redzone_val': 4500,
+        'lerp_alpha': 0.15,
+    },
+    'speedometer': {
+        'center': [667, 240], 'radius': 110, 'arc_width': 4,
+        'start_angle': 135, 'sweep': 270,
+        'min_val': 0, 'max_val': 240, 'redzone_val': None,
+        'lerp_alpha': 0.10,
+    },
+    'center_panel': {'readouts': []},
+}
+
+
+def test_tick_cache_populated_on_init():
+    r = GaugeRenderer(_TICK_STYLE, _TICK_GAUGES)
+    assert 'tachometer' in r._tick_cache
+    assert 'speedometer' in r._tick_cache
+
+
+def test_tach_tick_cache_has_correct_count():
+    r = GaugeRenderer(_TICK_STYLE, _TICK_GAUGES)
+    # 0–6000 in 250 RPM steps = 25 ticks (0, 250, 500, ..., 6000)
+    assert len(r._tick_cache['tachometer']) == 25
+
+
+def test_speedo_tick_cache_has_correct_count():
+    r = GaugeRenderer(_TICK_STYLE, _TICK_GAUGES)
+    # 0–240 in 10 km/h steps = 25 ticks (0, 10, 20, ..., 240)
+    assert len(r._tick_cache['speedometer']) == 25
+
+
+def test_tick_cache_entry_structure():
+    r = GaugeRenderer(_TICK_STYLE, _TICK_GAUGES)
+    entry = r._tick_cache['tachometer'][0]
+    # Each entry: (x1, y1, x2, y2, is_major)
+    assert len(entry) == 5
+    assert isinstance(entry[4], bool)
