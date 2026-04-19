@@ -6,7 +6,7 @@ Wants=gpsd.service
 [Service]
 Type=simple
 User=pi
-Environment=QT_QPA_PLATFORM=eglfs
+Environment=QT_QPA_PLATFORM=linuxfb:/dev/fb0
 WorkingDirectory=/home/pi/nova-dashboard-cv
 ExecStartPre=-/bin/bash /home/pi/nova-dashboard-cv/scripts/setup_can.sh
 ExecStart=/home/pi/nova-dashboard-cv/.venv/bin/python3 /home/pi/nova-dashboard-cv/main.py
