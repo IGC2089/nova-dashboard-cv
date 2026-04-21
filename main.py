@@ -14,7 +14,7 @@ import logging
 import numpy as np
 import cv2
 
-os.environ.setdefault('SDL_VIDEODRIVER', 'kmsdrm,fbcon')
+os.environ.setdefault('SDL_VIDEODRIVER', 'kmsdrm')
 os.environ.setdefault('SDL_NOMOUSE', '1')
 import pygame
 

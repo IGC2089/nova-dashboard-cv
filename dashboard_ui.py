@@ -119,10 +119,6 @@ class GaugeRenderer:
 
         active_angle = self.val_to_angle(rpm, 'tachometer')
 
-        # 1. Inactive full track
-        cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, ea,
-                    tuple(self._s['arc_inactive']), w_s, cv2.LINE_AA)
-
         if cfg.get('redzone_val') is not None:
             rz_angle = self.val_to_angle(cfg['redzone_val'], 'tachometer')
 
@@ -165,11 +161,7 @@ class GaugeRenderer:
 
         active_angle = self.val_to_angle(speed_kph, 'speedometer')
 
-        # 1. Inactive full track
-        cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, ea,
-                    tuple(self._s['arc_inactive']), w_s, cv2.LINE_AA)
-
-        # 2. Active arc (red)
+        # Active arc
         cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, active_angle,
                     tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
 
