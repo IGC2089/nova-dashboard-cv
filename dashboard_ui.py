@@ -268,9 +268,6 @@ class GaugeRenderer:
                 value_str = rd['format'].format(raw_val)
             self.draw_readout(canvas, rd['label'], value_str, rd['unit'],
                               rd['pos'], rd['font_scale'])
-        col = tuple(self._s['arc_inactive'])
-        cv2.line(canvas, (267, 20), (267, 460), col, 1)
-        cv2.line(canvas, (533, 20), (533, 460), col, 1)
 
     def draw_warning_icon(self, canvas: np.ndarray, cx: int, cy: int,
                           label: str, color: list, pulse: float = 1.0) -> None:
@@ -288,7 +285,7 @@ class GaugeRenderer:
                                 color, font_scale=0.35)
 
     def render_frame(self, canvas: np.ndarray, state, interp: dict) -> None:
-        canvas[:] = tuple(self._s['bg_color'])
+        np.copyto(canvas, self._bg)
         self.draw_tachometer(canvas, state.rpm, interp['tach_angle'])
         self.draw_speedometer(canvas, state.speed_kph,
                               interp['speedo_angle'],

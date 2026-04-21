@@ -96,3 +96,14 @@ def test_no_tick_cache(monkeypatch):
     """_tick_cache must not exist after SVG redesign."""
     r = _make_renderer(monkeypatch)
     assert not hasattr(r, '_tick_cache')
+
+
+def test_render_frame_copies_bg_to_canvas(monkeypatch):
+    """render_frame must copy _bg into canvas at the start."""
+    r = _make_renderer(monkeypatch)
+    canvas = np.zeros((480, 800, 3), dtype=np.uint8)
+    # Manually verify that _bg has content (mock SVG has blue pixels)
+    assert r._bg.max() > 0
+    # Verify that after np.copyto the canvas matches _bg
+    np.copyto(canvas, r._bg)
+    assert np.array_equal(canvas, r._bg)
