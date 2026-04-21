@@ -144,26 +144,32 @@ class GaugeRenderer:
         axes  = (r_s, r_s)
 
         active_angle = self.val_to_angle(rpm, 'tachometer')
-        rz_angle     = self.val_to_angle(cfg['redzone_val'], 'tachometer')
 
         # 1. Inactive full track
         cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, ea,
                     tuple(self._s['arc_inactive']), w_s, cv2.LINE_AA)
 
-        # 2. Active arc (blue) — clamped to redzone boundary
-        cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, min(active_angle, rz_angle),
-                    tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
+        if cfg.get('redzone_val') is not None:
+            rz_angle = self.val_to_angle(cfg['redzone_val'], 'tachometer')
 
-        # 3. Redzone glow (wider, blended)
-        glow_overlay = canvas.copy()
-        cv2.ellipse(glow_overlay, (cx_s, cy_s), axes, 0, rz_angle, ea,
-                    tuple(cfg['redzone_color']), w_s + max(1, int(6 * self._scale)),
-                    cv2.LINE_AA)
-        cv2.addWeighted(glow_overlay, 0.30, canvas, 0.70, 0, canvas)
+            # 2. Active arc — clamped to redzone boundary
+            cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, min(active_angle, rz_angle),
+                        tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
 
-        # 4. Redzone solid arc
-        cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, rz_angle, ea,
-                    tuple(cfg['redzone_color']), w_s, cv2.LINE_AA)
+            # 3. Redzone glow (wider, blended)
+            glow_overlay = canvas.copy()
+            cv2.ellipse(glow_overlay, (cx_s, cy_s), axes, 0, rz_angle, ea,
+                        tuple(cfg['redzone_color']), w_s + max(1, int(6 * self._scale)),
+                        cv2.LINE_AA)
+            cv2.addWeighted(glow_overlay, 0.30, canvas, 0.70, 0, canvas)
+
+            # 4. Redzone solid arc
+            cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, rz_angle, ea,
+                        tuple(cfg['redzone_color']), w_s, cv2.LINE_AA)
+        else:
+            # 2. Active arc — no redzone
+            cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, active_angle,
+                        tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
 
         self._draw_tapered_needle(canvas, 'tachometer', needle_angle)
 
