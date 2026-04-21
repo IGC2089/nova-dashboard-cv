@@ -85,8 +85,8 @@ class GaugeRenderer:
     def _draw_tapered_needle(self, canvas: np.ndarray, gauge_name: str,
                              needle_angle: float) -> None:
         cfg = self._g[gauge_name]
-        cx, cy = cfg['center']
-        r = cfg['radius']
+        cx, cy = self._svg_pt(cfg['center'][0], cfg['center'][1])
+        r = max(1, int(cfg['radius'] * self._scale))
         rad = math.radians(needle_angle)
         cos_a, sin_a = math.cos(rad), math.sin(rad)
         perp_cos = math.cos(rad + math.pi / 2)
@@ -94,37 +94,33 @@ class GaugeRenderer:
 
         tip_r   = int(r * 0.88)
         tail_r  = int(r * 0.15)
-        half_w  = 2  # half-width at pivot (pixels)
+        half_w  = max(1, int(2 * self._scale))
 
         tip   = (int(cx + tip_r  * cos_a), int(cy + tip_r  * sin_a))
         tail  = (int(cx - tail_r * cos_a), int(cy - tail_r * sin_a))
         pl    = (int(cx + half_w * perp_cos), int(cy + half_w * perp_sin))
         pr    = (int(cx - half_w * perp_cos), int(cy - half_w * perp_sin))
 
-        # Full wedge at 40% opacity (semi-transparent base)
         overlay = canvas.copy()
         pts_full = np.array([tail, pl, tip, pr], np.int32)
         cv2.fillPoly(overlay, [pts_full], tuple(self._s['needle_color']))
         cv2.addWeighted(overlay, 0.4, canvas, 0.6, 0, canvas)
 
-        # Tip triangle at 100% opacity (solid bright tip)
-        mid_r = int(r * 0.60)
-        mid   = (int(cx + mid_r * cos_a), int(cy + mid_r * sin_a))
-        ml    = (int(mid[0] + int(half_w * 0.4) * perp_cos),
-                 int(mid[1] + int(half_w * 0.4) * perp_sin))
-        mr    = (int(mid[0] - int(half_w * 0.4) * perp_cos),
-                 int(mid[1] - int(half_w * 0.4) * perp_sin))
+        mid_r   = int(r * 0.60)
+        mid     = (int(cx + mid_r * cos_a), int(cy + mid_r * sin_a))
+        hw_tip  = max(1, int(half_w * 0.4))
+        ml      = (int(mid[0] + hw_tip * perp_cos), int(mid[1] + hw_tip * perp_sin))
+        mr      = (int(mid[0] - hw_tip * perp_cos), int(mid[1] - hw_tip * perp_sin))
         pts_tip = np.array([mid, ml, tip, mr], np.int32)
         cv2.fillPoly(canvas, [pts_tip], tuple(self._s['needle_color']))
 
-        # Tail counterweight
         cv2.line(canvas, (cx, cy), tail,
                  tuple(self._s['label_color']), 2, cv2.LINE_AA)
 
-        # Hub
-        cv2.circle(canvas, (cx, cy), 6,
-                   tuple(self._s['hub_color']), -1, cv2.LINE_AA)
-        cv2.circle(canvas, (cx, cy), 3,
+        hub_r = max(3, int(6 * self._scale))
+        cv2.circle(canvas, (cx, cy), hub_r,
+                   tuple(cfg['hub_color']), -1, cv2.LINE_AA)
+        cv2.circle(canvas, (cx, cy), max(1, hub_r // 2),
                    tuple(self._s['bg_color']), -1, cv2.LINE_AA)
 
     def _put_centered_text(self, canvas: np.ndarray, text: str,
@@ -140,55 +136,41 @@ class GaugeRenderer:
     def draw_tachometer(self, canvas: np.ndarray, rpm: float,
                         needle_angle: float) -> None:
         cfg = self._g['tachometer']
-        cx, cy = cfg['center']
-        r = cfg['radius']
-        sa = cfg['start_angle']
-        ea = sa + cfg['sweep']
-        axes = (r, r)
-        w = cfg['arc_width']
+        cx_s, cy_s = self._svg_pt(cfg['center'][0], cfg['center'][1])
+        r_s   = max(1, int(cfg['radius']    * self._scale))
+        w_s   = max(1, int(cfg['arc_width'] * self._scale))
+        sa    = cfg['start_angle']
+        ea    = sa + cfg['sweep']
+        axes  = (r_s, r_s)
 
         active_angle = self.val_to_angle(rpm, 'tachometer')
-        rz_angle = self.val_to_angle(cfg['redzone_val'], 'tachometer')
+        rz_angle     = self.val_to_angle(cfg['redzone_val'], 'tachometer')
 
         # 1. Inactive full track
-        cv2.ellipse(canvas, (cx, cy), axes, 0, sa, ea,
-                    tuple(self._s['arc_inactive']), w, cv2.LINE_AA)
+        cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, ea,
+                    tuple(self._s['arc_inactive']), w_s, cv2.LINE_AA)
 
-        # 2. Active arc (cyan) — clamped to redzone boundary
-        cv2.ellipse(canvas, (cx, cy), axes, 0, sa, min(active_angle, rz_angle),
-                    tuple(self._s['arc_active']), w, cv2.LINE_AA)
+        # 2. Active arc (blue) — clamped to redzone boundary
+        cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, min(active_angle, rz_angle),
+                    tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
 
-        # 3. Critical zone glow (wider, blended)
+        # 3. Redzone glow (wider, blended)
         glow_overlay = canvas.copy()
-        cv2.ellipse(glow_overlay, (cx, cy), axes, 0, rz_angle, ea,
-                    tuple(self._s['arc_redzone']), w + 6, cv2.LINE_AA)
+        cv2.ellipse(glow_overlay, (cx_s, cy_s), axes, 0, rz_angle, ea,
+                    tuple(cfg['redzone_color']), w_s + max(1, int(6 * self._scale)),
+                    cv2.LINE_AA)
         cv2.addWeighted(glow_overlay, 0.30, canvas, 0.70, 0, canvas)
 
-        # 4. Critical zone solid arc
-        cv2.ellipse(canvas, (cx, cy), axes, 0, rz_angle, ea,
-                    tuple(self._s['arc_redzone']), w, cv2.LINE_AA)
-
-        # Tick marks from cache
-        for x1, y1, x2, y2, is_major in self._tick_cache['tachometer']:
-            color = tuple(self._s['value_color']) if is_major \
-                else tuple(self._s['label_color'])
-            thickness = 2 if is_major else 1
-            cv2.line(canvas, (x1, y1), (x2, y2), color, thickness, cv2.LINE_AA)
-
-        # Scale labels at major ticks: 0 10 20 30 40 50 60
-        for i, label in enumerate(['0', '10', '20', '30', '40', '50', '60']):
-            pct = (i * 1000) / 6000.0
-            angle = sa + pct * cfg['sweep']
-            lx, ly = self._angle_to_xy(cx, cy, r + 16, angle)
-            self._put_centered_text(canvas, label, lx, ly,
-                                    self._s['label_color'], font_scale=0.32)
+        # 4. Redzone solid arc
+        cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, rz_angle, ea,
+                    tuple(cfg['redzone_color']), w_s, cv2.LINE_AA)
 
         self._draw_tapered_needle(canvas, 'tachometer', needle_angle)
 
         rpm_str = f"{int(rpm):,}"
-        self._put_centered_text(canvas, rpm_str, cx, cy + 38,
+        self._put_centered_text(canvas, rpm_str, cx_s, cy_s + int(38 * self._scale),
                                 self._s['value_color'], font_scale=0.75, thickness=2)
-        self._put_centered_text(canvas, 'RPM', cx, cy + 58,
+        self._put_centered_text(canvas, 'RPM', cx_s, cy_s + int(58 * self._scale),
                                 self._s['label_color'], font_scale=0.30)
 
     def draw_speedometer(self, canvas: np.ndarray, speed_kph: float,
