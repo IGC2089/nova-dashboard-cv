@@ -71,7 +71,7 @@ class GaugeRenderer:
         if len(draw_pts) >= 2:
             arr = np.array(draw_pts, np.int32)
             w = max(1, int(cfg['arc_width'] * self._scale))
-            cv2.polylines(canvas, [arr], False, tuple(cfg['arc_color']), w, cv2.LINE_AA)
+            cv2.polylines(canvas, [arr], False, tuple(cfg['arc_color']), w, cv2.LINE_8)
 
     def _put_centered_text(self, canvas: np.ndarray, text: str,
                            cx: int, cy: int, color: list,
