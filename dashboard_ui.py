@@ -57,32 +57,38 @@ class GaugeRenderer:
 
     def _draw_track_fill(self, canvas: np.ndarray, gauge_name: str, value: float) -> None:
         cfg = self._g[gauge_name]
-        pts = [self._svg_pt(x, y) for x, y in cfg['track_points']]
+        raw = [self._svg_pt(x, y) for x, y in cfg['track_points']]
         pct = max(0.0, min(1.0, (value - cfg['min_val']) / (cfg['max_val'] - cfg['min_val'])))
-        n = len(pts)
-        t = pct * (n - 1)
-        seg = int(t)
-        frac = t - seg
-        draw_pts = list(pts[:seg + 1])
-        if seg < n - 1:
-            x0, y0 = pts[seg]
-            x1, y1 = pts[seg + 1]
-            draw_pts.append((int(x0 + frac * (x1 - x0)), int(y0 + frac * (y1 - y0))))
-        if len(draw_pts) < 2:
+
+        # Dense interpolation — 60 steps so each segment is tiny
+        STEPS = 60
+        dense = []
+        n = len(raw)
+        for i in range(STEPS + 1):
+            t = i / STEPS * (n - 1)
+            s = min(int(t), n - 2)
+            f = t - s
+            dense.append((raw[s][0] + f * (raw[s+1][0] - raw[s][0]),
+                           raw[s][1] + f * (raw[s+1][1] - raw[s][1])))
+
+        end_idx = int(pct * STEPS)
+        draw = dense[:end_idx + 1]
+        if len(draw) < 2:
             return
+
         hw = max(1, int(cfg['arc_width'] * self._scale / 2))
         color = tuple(cfg['arc_color'])
-        for i in range(len(draw_pts) - 1):
-            ax, ay = draw_pts[i]
-            bx, by = draw_pts[i + 1]
+        for i in range(len(draw) - 1):
+            ax, ay = draw[i]
+            bx, by = draw[i + 1]
             dx, dy = bx - ax, by - ay
             length = max(1.0, (dx*dx + dy*dy) ** 0.5)
-            px, py = int(-dy / length * hw), int(dx / length * hw)
+            px, py = -dy / length * hw, dx / length * hw
             quad = np.array([
-                [ax + px, ay + py],
-                [ax - px, ay - py],
-                [bx - px, by - py],
-                [bx + px, by + py],
+                [int(ax + px), int(ay + py)],
+                [int(ax - px), int(ay - py)],
+                [int(bx - px), int(by - py)],
+                [int(bx + px), int(by + py)],
             ], np.int32)
             cv2.fillPoly(canvas, [quad], color)
 
