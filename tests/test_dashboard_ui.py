@@ -21,11 +21,8 @@ def _patch_cairosvg(monkeypatch):
 
 STYLE = {
     'bg_color':      [1, 6, 8],
-    'arc_active':    [0, 122, 196],
     'arc_inactive':  [0, 18, 26],
-    'arc_redzone':   [0, 0, 255],
     'needle_color':  [128, 210, 255],
-    'hub_color':     [0, 122, 196],
     'label_color':   [0, 66, 90],
     'value_color':   [128, 210, 255],
     'warning_amber': [0, 165, 255],

@@ -99,14 +99,19 @@ def test_no_tick_cache(monkeypatch):
 
 
 def test_render_frame_copies_bg_to_canvas(monkeypatch):
-    """render_frame must copy _bg into canvas at the start."""
+    """render_frame must copy _bg into canvas, not fill with bg_color."""
+    from vehicle_state import VehicleState
     r = _make_renderer(monkeypatch)
     canvas = np.zeros((480, 800, 3), dtype=np.uint8)
-    # Manually verify that _bg has content (mock SVG has blue pixels)
-    assert r._bg.max() > 0
-    # Verify that after np.copyto the canvas matches _bg
-    np.copyto(canvas, r._bg)
-    assert np.array_equal(canvas, r._bg)
+    state = VehicleState()
+    state.lock = None
+    interp = {
+        'tach_angle': float(r._g['tachometer']['start_angle']),
+        'speedo_angle': float(r._g['speedometer']['start_angle']),
+    }
+    r.render_frame(canvas, state, interp)
+    # _bg has blue pixels from mock SVG; canvas must not be all-zero after render
+    assert canvas.max() > 0
 
 
 def test_draw_readout_uses_svg_coords(monkeypatch):

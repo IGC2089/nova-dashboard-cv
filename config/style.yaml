@@ -2,11 +2,8 @@
 # All colors in BGR (Blue, Green, Red) — OpenCV convention.
 theme:
   bg_color:       [10, 10, 10]
-  arc_active:     [255, 229, 0]
   arc_inactive:   [40, 40, 40]
-  arc_redzone:    [0, 0, 255]
   needle_color:   [255, 255, 255]
-  hub_color:      [255, 229, 0]
   label_color:    [160, 160, 160]
   value_color:    [255, 255, 255]
   warning_amber:  [0, 165, 255]

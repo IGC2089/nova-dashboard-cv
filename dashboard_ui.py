@@ -224,7 +224,7 @@ class GaugeRenderer:
     def draw_warning_icon(self, canvas: np.ndarray, cx: int, cy: int,
                           label: str, color: list, pulse: float = 1.0) -> None:
         """Draw a small check-engine style warning triangle with label below."""
-        r = 16
+        r = max(8, int(16 * self._scale))
         brightness = max(0.25, pulse)
         c = tuple(int(v * brightness) for v in color)
         pts = np.array([[cx, cy - r], [cx - r, cy + r], [cx + r, cy + r]], np.int32)
