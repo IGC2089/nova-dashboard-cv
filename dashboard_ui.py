@@ -57,40 +57,30 @@ class GaugeRenderer:
 
     def _draw_track_fill(self, canvas: np.ndarray, gauge_name: str, value: float) -> None:
         cfg = self._g[gauge_name]
-        raw = [self._svg_pt(x, y) for x, y in cfg['track_points']]
+        track = cfg['track_points']
         pct = max(0.0, min(1.0, (value - cfg['min_val']) / (cfg['max_val'] - cfg['min_val'])))
+        if pct <= 0:
+            return
 
-        # Dense interpolation — 60 steps so each segment is tiny
-        STEPS = 60
-        dense = []
-        n = len(raw)
-        for i in range(STEPS + 1):
+        n = len(track)
+        STEPS = 80
+        top_steps = max(1, int(pct * STEPS))
+        hw = max(1, int(cfg['arc_width'] * self._scale / 2))
+        color = tuple(cfg['arc_color'])
+
+        pts_right, pts_left = [], []
+        for i in range(top_steps + 1):
             t = i / STEPS * (n - 1)
             s = min(int(t), n - 2)
             f = t - s
-            dense.append((raw[s][0] + f * (raw[s+1][0] - raw[s][0]),
-                           raw[s][1] + f * (raw[s+1][1] - raw[s][1])))
+            x_svg = track[s][0] + f * (track[s+1][0] - track[s][0])
+            y_svg = track[s][1] + f * (track[s+1][1] - track[s][1])
+            sx, sy = self._svg_pt(x_svg, y_svg)
+            pts_right.append([sx + hw, sy])
+            pts_left.append([sx - hw, sy])
 
-        end_idx = int(pct * STEPS)
-        draw = dense[:end_idx + 1]
-        if len(draw) < 2:
-            return
-
-        hw = max(1, int(cfg['arc_width'] * self._scale / 2))
-        color = tuple(cfg['arc_color'])
-        for i in range(len(draw) - 1):
-            ax, ay = draw[i]
-            bx, by = draw[i + 1]
-            dx, dy = bx - ax, by - ay
-            length = max(1.0, (dx*dx + dy*dy) ** 0.5)
-            px, py = -dy / length * hw, dx / length * hw
-            quad = np.array([
-                [int(ax + px), int(ay + py)],
-                [int(ax - px), int(ay - py)],
-                [int(bx - px), int(by - py)],
-                [int(bx + px), int(by + py)],
-            ], np.int32)
-            cv2.fillPoly(canvas, [quad], color)
+        polygon = np.array(pts_right + pts_left[::-1], np.int32)
+        cv2.fillPoly(canvas, [polygon], color)
 
     def _put_centered_text(self, canvas: np.ndarray, text: str,
                            cx: int, cy: int, color: list,
