@@ -1,5 +1,23 @@
+import sys
+import types
 import numpy as np
+import cv2
+import pytest
 from dashboard_ui import GaugeRenderer
+
+# Prevent cairosvg from being called during unit tests — return a black 1960x800 PNG.
+@pytest.fixture(autouse=True)
+def _patch_cairosvg(monkeypatch):
+    fake = types.ModuleType('cairosvg')
+    def _fake_svg2png(**kwargs):
+        w = kwargs.get('output_width', 1960)
+        h = kwargs.get('output_height', 800)
+        arr = np.zeros((h, w, 3), dtype=np.uint8)
+        _, buf = cv2.imencode('.png', arr)
+        return buf.tobytes()
+    fake.svg2png = _fake_svg2png
+    monkeypatch.setitem(sys.modules, 'cairosvg', fake)
+
 
 STYLE = {
     'bg_color':      [1, 6, 8],
@@ -15,17 +33,22 @@ STYLE = {
 }
 
 GAUGES = {
+    'svg': {'path': 'assets/cluster - map.svg', 'native_width': 1960, 'native_height': 800},
     'tachometer': {
         'center': [480, 360], 'radius': 280, 'arc_width': 18,
         'start_angle': 150, 'sweep': 240,
         'min_val': 0, 'max_val': 6000, 'redzone_val': 4500,
         'label': 'RPM', 'lerp_alpha': 0.15,
+        'arc_color': [235, 179, 43], 'arc_bright_color': [251, 226, 42],
+        'redzone_color': [0, 0, 255], 'hub_color': [235, 179, 43],
     },
     'speedometer': {
         'center': [640, 240], 'radius': 110, 'arc_width': 8,
         'start_angle': 150, 'sweep': 240,
         'min_val': 0, 'max_val': 240, 'redzone_val': None,
         'label': 'km/h', 'lerp_alpha': 0.10,
+        'arc_color': [56, 22, 241], 'arc_bright_color': [56, 70, 252],
+        'hub_color': [56, 22, 241],
     },
     'center_panel': {
         'readouts': [
@@ -101,67 +124,6 @@ def test_draw_tachometer_no_crash():
     assert canvas.shape == (720, 1920, 3)
 
 
-
-
-# ---------------------------------------------------------------------------
-# Task 3: tick-position cache tests
-# These use a minimal GAUGES fixture that matches the tick-cache spec exactly.
-# ---------------------------------------------------------------------------
-
-_TICK_STYLE = {
-    'bg_color': [10, 10, 10],
-    'arc_active': [255, 229, 0],
-    'arc_inactive': [40, 40, 40],
-    'arc_redzone': [0, 0, 255],
-    'needle_color': [255, 255, 255],
-    'hub_color': [255, 229, 0],
-    'label_color': [160, 160, 160],
-    'value_color': [255, 255, 255],
-    'warning_amber': [0, 165, 255],
-    'warning_red': [0, 0, 255],
-}
-
-_TICK_GAUGES = {
-    'tachometer': {
-        'center': [133, 240], 'radius': 110, 'arc_width': 4,
-        'start_angle': 135, 'sweep': 270,
-        'min_val': 0, 'max_val': 6000, 'redzone_val': 4500,
-        'lerp_alpha': 0.15,
-    },
-    'speedometer': {
-        'center': [667, 240], 'radius': 110, 'arc_width': 4,
-        'start_angle': 135, 'sweep': 270,
-        'min_val': 0, 'max_val': 240, 'redzone_val': None,
-        'lerp_alpha': 0.10,
-    },
-    'center_panel': {'readouts': []},
-}
-
-
-def test_tick_cache_populated_on_init():
-    r = GaugeRenderer(_TICK_STYLE, _TICK_GAUGES)
-    assert 'tachometer' in r._tick_cache
-    assert 'speedometer' in r._tick_cache
-
-
-def test_tach_tick_cache_has_correct_count():
-    r = GaugeRenderer(_TICK_STYLE, _TICK_GAUGES)
-    # 0–6000 in 250 RPM steps = 25 ticks (0, 250, 500, ..., 6000)
-    assert len(r._tick_cache['tachometer']) == 25
-
-
-def test_speedo_tick_cache_has_correct_count():
-    r = GaugeRenderer(_TICK_STYLE, _TICK_GAUGES)
-    # 0–240 in 10 km/h steps = 25 ticks (0, 10, 20, ..., 240)
-    assert len(r._tick_cache['speedometer']) == 25
-
-
-def test_tick_cache_entry_structure():
-    r = GaugeRenderer(_TICK_STYLE, _TICK_GAUGES)
-    entry = r._tick_cache['tachometer'][0]
-    # Each entry: (x1, y1, x2, y2, is_major)
-    assert len(entry) == 5
-    assert isinstance(entry[4], bool)
 
 
 # ---------------------------------------------------------------------------

@@ -51,7 +51,7 @@ def main() -> None:
     gauges = load_gauges()
 
     state = VehicleState()
-    renderer = GaugeRenderer(style=style, gauges=gauges)
+    renderer = GaugeRenderer(style=style, gauges=gauges, width=WIDTH, height=HEIGHT)
 
     can_thread = CANListener(state, channel='can0')
     gps_thread = GPSListener(state)

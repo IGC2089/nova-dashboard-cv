@@ -12,43 +12,40 @@ class GaugeRenderer:
     All colors and geometry come from YAML — no constants in this file.
     """
 
-    def __init__(self, style: dict, gauges: dict):
+    def __init__(self, style: dict, gauges: dict, width: int = 800, height: int = 480):
         self._s = style
         self._g = gauges
-        self._tick_cache = self._build_tick_cache()
+        self._w = width
+        self._h = height
+        self._scale: float = 1.0
+        self._offset_x: int = 0
+        self._offset_y: int = 0
+        self._bg = self._init_background()
 
-    def _build_tick_cache(self) -> dict:
-        cache = {}
-        specs = {
-            'tachometer': {'step': 250, 'major_every': 1000},
-            'speedometer': {'step': 10,  'major_every': 20},
-        }
-        for name, spec in specs.items():
-            cfg = self._g[name]
-            cx, cy = cfg['center']
-            r = cfg['radius']
-            sa = cfg['start_angle']
-            sw = cfg['sweep']
-            mn, mx = cfg['min_val'], cfg['max_val']
-            step = spec['step']
-            major_every = spec['major_every']
-            entries = []
-            val = mn
-            while val <= mx + 1e-6:
-                pct = (val - mn) / (mx - mn)
-                angle_rad = math.radians(sa + pct * sw)
-                cos_a, sin_a = math.cos(angle_rad), math.sin(angle_rad)
-                is_major = (round(val) % major_every == 0)
-                r_out = r - 1
-                r_in = r - (12 if is_major else 6)
-                x1 = int(cx + r_out * cos_a)
-                y1 = int(cy + r_out * sin_a)
-                x2 = int(cx + r_in  * cos_a)
-                y2 = int(cy + r_in  * sin_a)
-                entries.append((x1, y1, x2, y2, is_major))
-                val += step
-            cache[name] = entries
-        return cache
+    def _init_background(self) -> np.ndarray:
+        import cairosvg
+        svg_cfg = self._g['svg']
+        png_bytes = cairosvg.svg2png(
+            url=svg_cfg['path'],
+            output_width=svg_cfg['native_width'],
+            output_height=svg_cfg['native_height'],
+        )
+        arr = cv2.imdecode(np.frombuffer(png_bytes, np.uint8), cv2.IMREAD_COLOR)
+        self._scale = min(self._w / svg_cfg['native_width'],
+                          self._h / svg_cfg['native_height'])
+        rw = int(svg_cfg['native_width']  * self._scale)
+        rh = int(svg_cfg['native_height'] * self._scale)
+        self._offset_x = (self._w - rw) // 2
+        self._offset_y = (self._h - rh) // 2
+        canvas = np.zeros((self._h, self._w, 3), dtype=np.uint8)
+        resized = cv2.resize(arr, (rw, rh), interpolation=cv2.INTER_AREA)
+        canvas[self._offset_y:self._offset_y + rh,
+               self._offset_x:self._offset_x + rw] = resized
+        return canvas
+
+    def _svg_pt(self, x: float, y: float) -> tuple[int, int]:
+        return (int(x * self._scale + self._offset_x),
+                int(y * self._scale + self._offset_y))
 
     def val_to_angle(self, value: float, gauge_name: str) -> float:
         """Map value to needle angle (degrees, clockwise from 3-o'clock). Clamps to range."""
