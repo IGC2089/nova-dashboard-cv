@@ -36,7 +36,7 @@ speedometer:
   redzone_val:       null
   label:             "km/h"
   lerp_alpha:        0.10
-  arc_color:         [56, 22, 241]       # BGR of #F11630 (red)
+  arc_color:         [56, 22, 241]       # BGR of #F11638 (red)
   arc_bright_color:  [56, 70, 252]       # BGR of #FC4638 (bright red)
   hub_color:         [56, 22, 241]
 
