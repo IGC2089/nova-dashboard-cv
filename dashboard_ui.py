@@ -65,27 +65,20 @@ class GaugeRenderer:
         n = len(track)
         STEPS = 80
         top_steps = max(1, int(pct * STEPS))
-        hw = max(1, int(cfg['arc_width'] * self._scale / 2))
+        thickness = max(2, int(cfg['arc_width'] * self._scale))
         color = tuple(cfg['arc_color'])
 
-        pts_right, pts_left = [], []
+        pts = []
         for i in range(top_steps + 1):
             t = i / STEPS * (n - 1)
             s = min(int(t), n - 2)
             f = t - s
             x_svg = track[s][0] + f * (track[s+1][0] - track[s][0])
             y_svg = track[s][1] + f * (track[s+1][1] - track[s][1])
-            sx, sy = self._svg_pt(x_svg, y_svg)
-            # tangent from segment direction; perpendicular normal for width offset
-            tx = track[s+1][0] - track[s][0]
-            ty = track[s+1][1] - track[s][1]
-            mag = math.hypot(tx, ty) or 1.0
-            nx, ny = -ty / mag, tx / mag
-            pts_right.append([int(sx + nx * hw), int(sy + ny * hw)])
-            pts_left.append([int(sx - nx * hw), int(sy - ny * hw)])
+            pts.append(self._svg_pt(x_svg, y_svg))
 
-        polygon = np.array(pts_right + pts_left[::-1], np.int32)
-        cv2.fillPoly(canvas, [polygon], color)
+        arr = np.array(pts, np.int32).reshape(-1, 1, 2)
+        cv2.polylines(canvas, [arr], False, color, thickness, cv2.LINE_8)
 
     def _put_centered_text(self, canvas: np.ndarray, text: str,
                            cx: int, cy: int, color: list,
