@@ -119,29 +119,8 @@ class GaugeRenderer:
 
         active_angle = self.val_to_angle(rpm, 'tachometer')
 
-        if cfg.get('redzone_val') is not None:
-            rz_angle = self.val_to_angle(cfg['redzone_val'], 'tachometer')
-
-            # 2. Active arc — clamped to redzone boundary
-            cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, min(active_angle, rz_angle),
-                        tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
-
-            # 3. Redzone glow (wider, blended)
-            glow_overlay = canvas.copy()
-            cv2.ellipse(glow_overlay, (cx_s, cy_s), axes, 0, rz_angle, ea,
-                        tuple(cfg['redzone_color']), w_s + max(1, int(6 * self._scale)),
-                        cv2.LINE_AA)
-            cv2.addWeighted(glow_overlay, 0.30, canvas, 0.70, 0, canvas)
-
-            # 4. Redzone solid arc
-            cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, rz_angle, ea,
-                        tuple(cfg['redzone_color']), w_s, cv2.LINE_AA)
-        else:
-            # 2. Active arc — no redzone
-            cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, active_angle,
-                        tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
-
-        self._draw_tapered_needle(canvas, 'tachometer', needle_angle)
+        cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, active_angle,
+                    tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
 
         rpm_str = f"{int(rpm):,}"
         self._put_centered_text(canvas, rpm_str, cx_s, cy_s + int(38 * self._scale),
@@ -161,11 +140,8 @@ class GaugeRenderer:
 
         active_angle = self.val_to_angle(speed_kph, 'speedometer')
 
-        # Active arc
         cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, active_angle,
                     tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
-
-        self._draw_tapered_needle(canvas, 'speedometer', needle_angle)
 
         if gps_fix:
             speed_str = f"{int(speed_kph)}"
