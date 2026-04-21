@@ -46,7 +46,6 @@ class SpeeduinoDecoder:
 
 
 import threading
-import can
 from vehicle_state import VehicleState
 
 
@@ -62,6 +61,7 @@ class CANListener(threading.Thread):
 
     def run(self) -> None:
         import time
+        import can
         self._running = True
         while self._running:
             try:
