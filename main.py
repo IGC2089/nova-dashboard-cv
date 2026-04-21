@@ -93,6 +93,12 @@ def main() -> None:
 
             snap = state.snapshot()
 
+            if '--simulate' in sys.argv:
+                t = time.monotonic()
+                snap.rpm       = 3000 + 2500 * math.sin(t * 0.4)
+                snap.speed_kph = 120  + 100  * math.sin(t * 0.3)
+                snap.gps_fix   = True
+
             tach_target   = renderer.val_to_angle(snap.rpm,       'tachometer')
             speedo_target = renderer.val_to_angle(snap.speed_kph, 'speedometer')
             interp['tach_angle']   += (tach_target   - interp['tach_angle'])   * tach_alpha
