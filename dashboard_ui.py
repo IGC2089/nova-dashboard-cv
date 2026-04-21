@@ -76,8 +76,13 @@ class GaugeRenderer:
             x_svg = track[s][0] + f * (track[s+1][0] - track[s][0])
             y_svg = track[s][1] + f * (track[s+1][1] - track[s][1])
             sx, sy = self._svg_pt(x_svg, y_svg)
-            pts_right.append([sx + hw, sy])
-            pts_left.append([sx - hw, sy])
+            # tangent from segment direction; perpendicular normal for width offset
+            tx = track[s+1][0] - track[s][0]
+            ty = track[s+1][1] - track[s][1]
+            mag = math.hypot(tx, ty) or 1.0
+            nx, ny = -ty / mag, tx / mag
+            pts_right.append([int(sx + nx * hw), int(sy + ny * hw)])
+            pts_left.append([int(sx - nx * hw), int(sy - ny * hw)])
 
         polygon = np.array(pts_right + pts_left[::-1], np.int32)
         cv2.fillPoly(canvas, [polygon], color)
