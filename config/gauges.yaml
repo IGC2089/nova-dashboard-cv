@@ -11,34 +11,39 @@ svg:
 
 tachometer:
   center:            [333, 380]
-  radius:            245
   arc_width:         18
-  start_angle:       135
-  sweep:             270
   min_val:           0
   max_val:           6000
-  redzone_val:       4500
   label:             "RPM"
   lerp_alpha:        0.15
-  arc_color:         [235, 179, 43]      # BGR of #2BB3EB (blue)
-  arc_bright_color:  [251, 226, 42]      # BGR of #2AE2FB (bright blue)
-  redzone_color:     [0, 0, 255]
-  hub_color:         [235, 179, 43]
+  arc_color:         [235, 179, 43]
+  track_points:
+    - [349, 571]
+    - [312, 513]
+    - [276, 454]
+    - [239, 394]
+    - [211, 334]
+    - [237, 278]
+    - [268, 221]
+    - [298, 164]
 
 speedometer:
   center:            [1627, 380]
-  radius:            245
   arc_width:         18
-  start_angle:       135
-  sweep:             270
   min_val:           0
   max_val:           240
-  redzone_val:       null
   label:             "km/h"
   lerp_alpha:        0.10
-  arc_color:         [56, 22, 241]       # BGR of #F11638 (red)
-  arc_bright_color:  [56, 70, 252]       # BGR of #FC4638 (bright red)
-  hub_color:         [56, 22, 241]
+  arc_color:         [56, 22, 241]
+  track_points:
+    - [1611, 571]
+    - [1648, 513]
+    - [1684, 454]
+    - [1721, 394]
+    - [1749, 334]
+    - [1723, 278]
+    - [1692, 221]
+    - [1662, 164]
 
 center_panel:
   readouts:

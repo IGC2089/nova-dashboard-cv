@@ -56,12 +56,7 @@ def main() -> None:
     can_thread = CANListener(state, channel='can0')
     gps_thread = GPSListener(state)
 
-    interp = {
-        'tach_angle':   float(gauges['tachometer']['start_angle']),
-        'speedo_angle': float(gauges['speedometer']['start_angle']),
-    }
-    tach_alpha   = gauges['tachometer']['lerp_alpha']
-    speedo_alpha = gauges['speedometer']['lerp_alpha']
+    interp = {}
 
     running = True
 
@@ -98,11 +93,6 @@ def main() -> None:
                 snap.rpm       = 3000 + 2500 * math.sin(t * 0.4)
                 snap.speed_kph = 120  + 100  * math.sin(t * 0.3)
                 snap.gps_fix   = True
-
-            tach_target   = renderer.val_to_angle(snap.rpm,       'tachometer')
-            speedo_target = renderer.val_to_angle(snap.speed_kph, 'speedometer')
-            interp['tach_angle']   += (tach_target   - interp['tach_angle'])   * tach_alpha
-            interp['speedo_angle'] += (speedo_target - interp['speedo_angle']) * speedo_alpha
 
             renderer.render_frame(canvas, snap, interp)
 

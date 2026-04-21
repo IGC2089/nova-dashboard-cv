@@ -50,52 +50,28 @@ class GaugeRenderer:
                 int(y * self._scale + self._offset_y))
 
     def val_to_angle(self, value: float, gauge_name: str) -> float:
-        """Map value to needle angle (degrees, clockwise from 3-o'clock). Clamps to range."""
         cfg = self._g[gauge_name]
         pct = max(0.0, min(1.0, (value - cfg['min_val']) /
                            (cfg['max_val'] - cfg['min_val'])))
-        return cfg['start_angle'] + pct * cfg['sweep']
+        return pct
 
-    def _draw_tapered_needle(self, canvas: np.ndarray, gauge_name: str,
-                             needle_angle: float) -> None:
+    def _draw_track_fill(self, canvas: np.ndarray, gauge_name: str, value: float) -> None:
         cfg = self._g[gauge_name]
-        cx, cy = self._svg_pt(cfg['center'][0], cfg['center'][1])
-        r = max(1, int(cfg['radius'] * self._scale))
-        rad = math.radians(needle_angle)
-        cos_a, sin_a = math.cos(rad), math.sin(rad)
-        perp_cos = math.cos(rad + math.pi / 2)
-        perp_sin = math.sin(rad + math.pi / 2)
-
-        tip_r   = int(r * 0.88)
-        tail_r  = int(r * 0.15)
-        half_w  = max(1, int(2 * self._scale))
-
-        tip   = (int(cx + tip_r  * cos_a), int(cy + tip_r  * sin_a))
-        tail  = (int(cx - tail_r * cos_a), int(cy - tail_r * sin_a))
-        pl    = (int(cx + half_w * perp_cos), int(cy + half_w * perp_sin))
-        pr    = (int(cx - half_w * perp_cos), int(cy - half_w * perp_sin))
-
-        overlay = canvas.copy()
-        pts_full = np.array([tail, pl, tip, pr], np.int32)
-        cv2.fillPoly(overlay, [pts_full], tuple(self._s['needle_color']))
-        cv2.addWeighted(overlay, 0.4, canvas, 0.6, 0, canvas)
-
-        mid_r   = int(r * 0.60)
-        mid     = (int(cx + mid_r * cos_a), int(cy + mid_r * sin_a))
-        hw_tip  = max(1, int(half_w * 0.4))
-        ml      = (int(mid[0] + hw_tip * perp_cos), int(mid[1] + hw_tip * perp_sin))
-        mr      = (int(mid[0] - hw_tip * perp_cos), int(mid[1] - hw_tip * perp_sin))
-        pts_tip = np.array([mid, ml, tip, mr], np.int32)
-        cv2.fillPoly(canvas, [pts_tip], tuple(self._s['needle_color']))
-
-        cv2.line(canvas, (cx, cy), tail,
-                 tuple(self._s['label_color']), 2, cv2.LINE_AA)
-
-        hub_r = max(3, int(6 * self._scale))
-        cv2.circle(canvas, (cx, cy), hub_r,
-                   tuple(cfg['hub_color']), -1, cv2.LINE_AA)
-        cv2.circle(canvas, (cx, cy), max(1, hub_r // 2),
-                   tuple(self._s['bg_color']), -1, cv2.LINE_AA)
+        pts = [self._svg_pt(x, y) for x, y in cfg['track_points']]
+        pct = max(0.0, min(1.0, (value - cfg['min_val']) / (cfg['max_val'] - cfg['min_val'])))
+        n = len(pts)
+        t = pct * (n - 1)
+        seg = int(t)
+        frac = t - seg
+        draw_pts = list(pts[:seg + 1])
+        if seg < n - 1:
+            x0, y0 = pts[seg]
+            x1, y1 = pts[seg + 1]
+            draw_pts.append((int(x0 + frac * (x1 - x0)), int(y0 + frac * (y1 - y0))))
+        if len(draw_pts) >= 2:
+            arr = np.array(draw_pts, np.int32)
+            w = max(1, int(cfg['arc_width'] * self._scale))
+            cv2.polylines(canvas, [arr], False, tuple(cfg['arc_color']), w, cv2.LINE_AA)
 
     def _put_centered_text(self, canvas: np.ndarray, text: str,
                            cx: int, cy: int, color: list,
@@ -108,20 +84,10 @@ class GaugeRenderer:
                     font, font_scale, tuple(color), thickness, cv2.LINE_AA)
 
     def draw_tachometer(self, canvas: np.ndarray, rpm: float,
-                        needle_angle: float) -> None:
+                        needle_angle: float = 0.0) -> None:
         cfg = self._g['tachometer']
         cx_s, cy_s = self._svg_pt(cfg['center'][0], cfg['center'][1])
-        r_s   = max(1, int(cfg['radius']    * self._scale))
-        w_s   = max(1, int(cfg['arc_width'] * self._scale))
-        sa    = cfg['start_angle']
-        ea    = sa + cfg['sweep']
-        axes  = (r_s, r_s)
-
-        active_angle = self.val_to_angle(rpm, 'tachometer')
-
-        cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, active_angle,
-                    tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
-
+        self._draw_track_fill(canvas, 'tachometer', rpm)
         rpm_str = f"{int(rpm):,}"
         self._put_centered_text(canvas, rpm_str, cx_s, cy_s + int(38 * self._scale),
                                 self._s['value_color'], font_scale=0.75, thickness=2)
@@ -129,19 +95,10 @@ class GaugeRenderer:
                                 self._s['label_color'], font_scale=0.30)
 
     def draw_speedometer(self, canvas: np.ndarray, speed_kph: float,
-                         needle_angle: float, gps_fix: bool) -> None:
+                         needle_angle: float = 0.0, gps_fix: bool = True) -> None:
         cfg = self._g['speedometer']
         cx_s, cy_s = self._svg_pt(cfg['center'][0], cfg['center'][1])
-        r_s   = max(1, int(cfg['radius']    * self._scale))
-        w_s   = max(1, int(cfg['arc_width'] * self._scale))
-        sa    = cfg['start_angle']
-        ea    = sa + cfg['sweep']
-        axes  = (r_s, r_s)
-
-        active_angle = self.val_to_angle(speed_kph, 'speedometer')
-
-        cv2.ellipse(canvas, (cx_s, cy_s), axes, 0, sa, active_angle,
-                    tuple(cfg['arc_color']), w_s, cv2.LINE_AA)
+        self._draw_track_fill(canvas, 'speedometer', speed_kph)
 
         if gps_fix:
             speed_str = f"{int(speed_kph)}"
@@ -206,10 +163,9 @@ class GaugeRenderer:
 
     def render_frame(self, canvas: np.ndarray, state, interp: dict) -> None:
         np.copyto(canvas, self._bg)
-        self.draw_tachometer(canvas, state.rpm, interp['tach_angle'])
+        self.draw_tachometer(canvas, state.rpm)
         self.draw_speedometer(canvas, state.speed_kph,
-                              interp['speedo_angle'],
-                              getattr(state, 'gps_fix', True))
+                              gps_fix=getattr(state, 'gps_fix', True))
         self.draw_center_panel(canvas, state)
         warnings = self._collect_warnings(state)
         pulse = abs(math.sin(time.monotonic() * 2.5))
