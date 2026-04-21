@@ -1,80 +1,92 @@
 # config/gauges.yaml
-# Angles in degrees, clockwise from 3-o'clock (OpenCV convention).
-# start_angle=135 places 0-value at ~7 o'clock.
-# sweep=270 gives a 270-degree arc ending at ~5 o'clock (Audi/BMW orientation).
-# Layout: 800x480 — left third [0-267], center [267-533], right [533-800]
+# ALL positions are in SVG coordinate space (native 1960x800).
+# The renderer converts to screen coords using _svg_pt(x, y).
+# Angles: clockwise from 3-o'clock (OpenCV convention).
+# start_angle=135 places 0-value at ~7 o'clock; sweep=270 ends at ~5 o'clock.
+
+svg:
+  path: "assets/cluster - map.svg"
+  native_width: 1960
+  native_height: 800
 
 tachometer:
-  center:       [133, 240]
-  radius:       110
-  arc_width:    4
-  start_angle:  135
-  sweep:        270
-  min_val:      0
-  max_val:      6000
-  redzone_val:  4500
-  label:        "RPM"
-  lerp_alpha:   0.15
+  center:            [333, 380]
+  radius:            245
+  arc_width:         18
+  start_angle:       135
+  sweep:             270
+  min_val:           0
+  max_val:           6000
+  redzone_val:       4500
+  label:             "RPM"
+  lerp_alpha:        0.15
+  arc_color:         [235, 179, 43]      # BGR of #2BB3EB (blue)
+  arc_bright_color:  [251, 226, 42]      # BGR of #2AE2FB (bright blue)
+  redzone_color:     [0, 0, 255]
+  hub_color:         [235, 179, 43]
 
 speedometer:
-  center:       [667, 240]
-  radius:       110
-  arc_width:    4
-  start_angle:  135
-  sweep:        270
-  min_val:      0
-  max_val:      240
-  redzone_val:  null
-  label:        "km/h"
-  lerp_alpha:   0.10
+  center:            [1627, 380]
+  radius:            245
+  arc_width:         18
+  start_angle:       135
+  sweep:             270
+  min_val:           0
+  max_val:           240
+  redzone_val:       null
+  label:             "km/h"
+  lerp_alpha:        0.10
+  arc_color:         [56, 22, 241]       # BGR of #F11630 (red)
+  arc_bright_color:  [56, 70, 252]       # BGR of #FC4638 (bright red)
+  hub_color:         [56, 22, 241]
 
 center_panel:
   readouts:
     - label:       "BATT"
       state_field: batt_v
       unit:        "V"
-      pos:         [316, 75]
+      pos:         [850, 180]
       format:      "{:.1f}"
       font_scale:  0.9
 
     - label:       "IGN"
       state_field: ign_advance
       unit:        "deg"
-      pos:         [484, 75]
+      pos:         [1115, 180]
       format:      "{:.1f}"
       font_scale:  0.9
 
     - label:       "MAP"
       state_field: map_kpa
       unit:        "kPa"
-      pos:         [316, 175]
+      pos:         [850, 330]
       format:      "{:.0f}"
       font_scale:  0.9
 
     - label:       "CLT"
       state_field: clt_c
       unit:        "C"
-      pos:         [484, 175]
+      pos:         [1115, 330]
       format:      "{:.0f}"
       font_scale:  0.9
 
     - label:       "AFR"
       state_field: afr
       unit:        ""
-      pos:         [400, 275]
+      pos:         [980, 440]
       format:      "{:.1f}"
       font_scale:  1.8
 
     - label:       "ODO"
       state_field: odo_km
       unit:        "km"
-      pos:         [316, 400]
+      pos:         [850, 590]
       format:      "{:.0f}"
       font_scale:  0.7
 
     - label:       "TRIP"
       state_field: trip_km
       unit:        "km"
-      pos:         [484, 400]
+      pos:         [1115, 590]
       format:      "{:.1f}"
       font_scale:  0.7
