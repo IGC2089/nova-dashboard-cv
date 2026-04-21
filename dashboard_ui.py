@@ -198,7 +198,7 @@ class GaugeRenderer:
 
     def draw_readout(self, canvas: np.ndarray, label: str, value_str: str,
                      unit: str, pos: list, font_scale: float) -> None:
-        x, y = pos
+        x, y = self._svg_pt(pos[0], pos[1])
         spacing = int(font_scale * 15) + 12
         self._put_centered_text(canvas, label, x, y - spacing,
                                 self._s['label_color'], font_scale=0.4)
@@ -245,10 +245,12 @@ class GaugeRenderer:
         self.draw_center_panel(canvas, state)
         warnings = self._collect_warnings(state)
         pulse = abs(math.sin(time.monotonic() * 2.5))
+        warn_y = self._h - 45
+        warn_cx = self._w // 2
         total = len(warnings)
         for i, (label, color) in enumerate(warnings):
             offset = (i - (total - 1) / 2) * 70
-            self.draw_warning_icon(canvas, int(400 + offset), 435,
+            self.draw_warning_icon(canvas, int(warn_cx + offset), warn_y,
                                    label, color,
                                    pulse=pulse if i == 0 else 1.0)
 

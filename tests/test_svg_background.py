@@ -107,3 +107,13 @@ def test_render_frame_copies_bg_to_canvas(monkeypatch):
     # Verify that after np.copyto the canvas matches _bg
     np.copyto(canvas, r._bg)
     assert np.array_equal(canvas, r._bg)
+
+
+def test_draw_readout_uses_svg_coords(monkeypatch):
+    """draw_readout must transform pos through _svg_pt."""
+    r = _make_renderer(monkeypatch)
+    canvas = np.zeros((480, 800, 3), dtype=np.uint8)
+    # SVG pos (980, 440) at scale 0.408, offset_y=77 → screen ~(400, 257)
+    # That is within 800x480, so text should be drawn and canvas modified
+    r.draw_readout(canvas, 'AFR', '14.7', '', [980, 440], font_scale=1.8)
+    assert canvas.max() > 0
