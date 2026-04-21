@@ -68,10 +68,23 @@ class GaugeRenderer:
             x0, y0 = pts[seg]
             x1, y1 = pts[seg + 1]
             draw_pts.append((int(x0 + frac * (x1 - x0)), int(y0 + frac * (y1 - y0))))
-        if len(draw_pts) >= 2:
-            arr = np.array(draw_pts, np.int32)
-            w = max(1, int(cfg['arc_width'] * self._scale))
-            cv2.polylines(canvas, [arr], False, tuple(cfg['arc_color']), w, cv2.LINE_8)
+        if len(draw_pts) < 2:
+            return
+        hw = max(1, int(cfg['arc_width'] * self._scale / 2))
+        color = tuple(cfg['arc_color'])
+        for i in range(len(draw_pts) - 1):
+            ax, ay = draw_pts[i]
+            bx, by = draw_pts[i + 1]
+            dx, dy = bx - ax, by - ay
+            length = max(1.0, (dx*dx + dy*dy) ** 0.5)
+            px, py = int(-dy / length * hw), int(dx / length * hw)
+            quad = np.array([
+                [ax + px, ay + py],
+                [ax - px, ay - py],
+                [bx - px, by - py],
+                [bx + px, by + py],
+            ], np.int32)
+            cv2.fillPoly(canvas, [quad], color)
 
     def _put_centered_text(self, canvas: np.ndarray, text: str,
                            cx: int, cy: int, color: list,

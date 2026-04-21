@@ -11,7 +11,7 @@ svg:
 
 tachometer:
   center:            [333, 380]
-  arc_width:         60
+  arc_width:         30
   min_val:           0
   max_val:           6000
   label:             "RPM"
@@ -29,7 +29,7 @@ tachometer:
 
 speedometer:
   center:            [1627, 380]
-  arc_width:         60
+  arc_width:         30
   min_val:           0
   max_val:           240
   label:             "km/h"
