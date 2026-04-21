@@ -31,6 +31,8 @@ class GaugeRenderer:
             output_height=svg_cfg['native_height'],
         )
         arr = cv2.imdecode(np.frombuffer(png_bytes, np.uint8), cv2.IMREAD_COLOR)
+        if arr is None:
+            raise RuntimeError(f"_init_background: failed to decode SVG PNG from {svg_cfg['path']}")
         self._scale = min(self._w / svg_cfg['native_width'],
                           self._h / svg_cfg['native_height'])
         rw = int(svg_cfg['native_width']  * self._scale)
