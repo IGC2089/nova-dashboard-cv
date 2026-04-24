@@ -22,6 +22,9 @@ class VehicleState:
     trip_km: float = 0.0
     gps_fix: bool = False
 
+    # Fuel level (0.0–1.0)
+    fuel_pct: float = 0.5
+
     # Threading (excluded from snapshot)
     lock: Optional[threading.Lock] = field(
         default_factory=threading.Lock, repr=False, compare=False
@@ -43,5 +46,6 @@ class VehicleState:
                 odo_km=self.odo_km,
                 trip_km=self.trip_km,
                 gps_fix=self.gps_fix,
+                fuel_pct=self.fuel_pct,
                 lock=None,
             )

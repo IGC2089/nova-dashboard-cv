@@ -1,8 +1,7 @@
 # config/gauges.yaml
 # ALL positions are in SVG coordinate space (native 1960x800).
-# The renderer converts to screen coords using _svg_pt(x, y).
-# Angles: clockwise from 3-o'clock (OpenCV convention).
-# start_angle=135 places 0-value at ~7 o'clock; sweep=270 ends at ~5 o'clock.
+# fill_svgs: anchor_x/anchor_y are the BOTTOM-LEFT corner of each fill SVG
+# in cluster-map coordinates. Fill grows upward from anchor_y.
 
 svg:
   path: "assets/cluster - map.svg"
@@ -11,39 +10,39 @@ svg:
 
 tachometer:
   center:            [333, 380]
-  arc_width:         30
+  arc_width:         80
   min_val:           0
   max_val:           6000
   label:             "RPM"
   lerp_alpha:        0.15
   arc_color:         [235, 179, 43]
   track_points:
-    - [376, 571]
-    - [339, 513]
-    - [317, 454]
-    - [267, 394]
-    - [223, 334]
-    - [203, 278]
-    - [226, 221]
-    - [257, 164]
+    - [373, 571]
+    - [337, 513]
+    - [300, 454]
+    - [263, 394]
+    - [246, 334]
+    - [275, 278]
+    - [306, 221]
+    - [338, 164]
 
 speedometer:
   center:            [1627, 380]
-  arc_width:         30
+  arc_width:         80
   min_val:           0
   max_val:           240
   label:             "km/h"
   lerp_alpha:        0.10
   arc_color:         [56, 22, 241]
   track_points:
-    - [1584, 571]
-    - [1621, 513]
-    - [1643, 454]
-    - [1693, 394]
-    - [1737, 334]
-    - [1757, 278]
-    - [1734, 221]
-    - [1703, 164]
+    - [1587, 571]
+    - [1623, 513]
+    - [1660, 454]
+    - [1697, 394]
+    - [1714, 334]
+    - [1685, 278]
+    - [1654, 221]
+    - [1622, 164]
 
 center_panel:
   readouts:
@@ -95,3 +94,28 @@ center_panel:
       pos:         [1115, 590]
       format:      "{:.1f}"
       font_scale:  0.7
+
+fill_svgs:
+  tachometer:
+    path:      "assets/speedometer fill.svg"
+    anchor_x:  384
+    anchor_y:  623
+
+  speedometer:
+    path:      "assets/tachometer fill.svg"
+    anchor_x:  1522
+    anchor_y:  623
+
+  clt:
+    path:      "assets/clt fill.svg"
+    anchor_x:  1454
+    anchor_y:  624
+    min_val:   60
+    max_val:   120
+
+  fuel:
+    path:      "assets/fuel fill.svg"
+    anchor_x:  486
+    anchor_y:  624
+    min_val:   0
+    max_val:   100

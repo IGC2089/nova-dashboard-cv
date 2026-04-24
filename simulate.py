@@ -39,6 +39,7 @@ def _simulate_state(state: VehicleState) -> None:
             state.odo_km    = 77654 + t / 60.0
             state.trip_km   = t / 60.0
             state.gps_fix   = True
+            state.fuel_pct  = 0.3 + 0.5 * abs(math.sin(t * 0.05))
         time.sleep(0.05)
 
 
@@ -51,10 +52,7 @@ def main() -> None:
     sim_thread.start()
 
     renderer = GaugeRenderer(style=style, gauges=gauges)
-    interp = {
-        'tach_angle':   float(gauges['tachometer']['start_angle']),
-        'speedo_angle': float(gauges['speedometer']['start_angle']),
-    }
+    interp = {}
     tach_alpha   = gauges['tachometer']['lerp_alpha']
     speedo_alpha = gauges['speedometer']['lerp_alpha']
 
@@ -75,11 +73,6 @@ def main() -> None:
                 running = False
 
         snap = state.snapshot()
-
-        tach_target   = renderer.val_to_angle(snap.rpm,       'tachometer')
-        speedo_target = renderer.val_to_angle(snap.speed_kph, 'speedometer')
-        interp['tach_angle']   += (tach_target   - interp['tach_angle'])   * tach_alpha
-        interp['speedo_angle'] += (speedo_target - interp['speedo_angle']) * speedo_alpha
 
         renderer.render_frame(canvas, snap, interp)
 
