@@ -135,30 +135,12 @@ class GaugeRenderer:
         color = tuple(self._s['value_color']) if gps_fix else tuple(self._s['label_color'])
 
         font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 2.0
-        thickness = 3
+        font_scale = 1.0
+        thickness = 2
         (tw, th), _ = cv2.getTextSize(speed_str, font, font_scale, thickness)
-        pad = 6
-        cv2.rectangle(canvas,
-                       (cx_s - tw // 2 - pad, cy_s - th - pad),
-                       (cx_s + tw // 2 + pad, cy_s + th // 2 + pad),
-                       (0, 0, 0), -1)
         cv2.putText(canvas, speed_str,
                     (cx_s - tw // 2, cy_s + th // 2),
                     font, font_scale, color, thickness, cv2.LINE_AA)
-
-        self._put_centered_text(canvas, 'km/h', cx_s, cy_s + int(30 * self._scale),
-                                self._s['label_color'], font_scale=0.35)
-
-        dot_color = cfg['arc_color'] if gps_fix else self._s['warning_red']
-        cv2.circle(canvas,
-                   (cx_s, cy_s + int(45 * self._scale)),
-                   max(2, int(4 * self._scale)),
-                   tuple(dot_color), -1, cv2.LINE_AA)
-        self._put_centered_text(canvas, 'GPS',
-                                cx_s + max(1, int(10 * self._scale)),
-                                cy_s + int(47 * self._scale),
-                                self._s['label_color'], font_scale=0.3)
 
     def draw_readout(self, canvas: np.ndarray, label: str, value_str: str,
                      unit: str, pos: list, font_scale: float) -> None:
