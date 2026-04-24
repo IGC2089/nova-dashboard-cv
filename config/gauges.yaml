@@ -97,12 +97,12 @@ center_panel:
 
 fill_svgs:
   tachometer:
-    path:      "assets/tachometer fill.svg"
+    path:      "assets/speedometer fill.svg"
     anchor_x:  242
     anchor_y:  623
 
   speedometer:
-    path:      "assets/speedometer fill.svg"
+    path:      "assets/tachometer fill.svg"
     anchor_x:  1522
     anchor_y:  623
 
