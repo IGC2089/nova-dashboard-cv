@@ -57,6 +57,10 @@ def main() -> None:
     gps_thread = GPSListener(state)
 
     interp = {}
+    page = 0
+    swipe_start_x = None
+    SWIPE_THRESHOLD = 50
+    TOTAL_PAGES = 2
 
     running = True
 
@@ -85,6 +89,16 @@ def main() -> None:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    swipe_start_x = event.pos[0]
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    if swipe_start_x is not None:
+                        dx = event.pos[0] - swipe_start_x
+                        if dx < -SWIPE_THRESHOLD:
+                            page = min(TOTAL_PAGES - 1, page + 1)
+                        elif dx > SWIPE_THRESHOLD:
+                            page = max(0, page - 1)
+                    swipe_start_x = None
 
             snap = state.snapshot()
 
@@ -94,7 +108,7 @@ def main() -> None:
                 snap.speed_kph = 120  + 100  * math.sin(t * 0.3)
                 snap.gps_fix   = True
 
-            renderer.render_frame(canvas, snap, interp)
+            renderer.render_frame(canvas, snap, interp, page)
 
             rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
             surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))

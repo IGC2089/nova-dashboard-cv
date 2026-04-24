@@ -64,17 +64,37 @@ def main() -> None:
 
     canvas = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
+    page = 0
+    swipe_start_x = None
+    SWIPE_THRESHOLD = 50
+    TOTAL_PAGES = 2
+
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_q, pygame.K_ESCAPE):
-                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_q, pygame.K_ESCAPE):
+                    running = False
+                elif event.key == pygame.K_LEFT:
+                    page = max(0, page - 1)
+                elif event.key == pygame.K_RIGHT:
+                    page = min(TOTAL_PAGES - 1, page + 1)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                swipe_start_x = event.pos[0]
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if swipe_start_x is not None:
+                    dx = event.pos[0] - swipe_start_x
+                    if dx < -SWIPE_THRESHOLD:
+                        page = min(TOTAL_PAGES - 1, page + 1)
+                    elif dx > SWIPE_THRESHOLD:
+                        page = max(0, page - 1)
+                swipe_start_x = None
 
         snap = state.snapshot()
 
-        renderer.render_frame(canvas, snap, interp)
+        renderer.render_frame(canvas, snap, interp, page)
 
         rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
         surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))

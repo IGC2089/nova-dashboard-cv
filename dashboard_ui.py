@@ -166,7 +166,9 @@ class GaugeRenderer:
             self._put_centered_text(canvas, unit, x, y + spacing,
                                     self._s['label_color'], font_scale=0.35)
 
-    def draw_center_panel(self, canvas: np.ndarray, state) -> None:
+    def draw_center_panel(self, canvas: np.ndarray, state, page: int = 0) -> None:
+        if page != 1:
+            return
         for rd in self._g['center_panel']['readouts']:
             field = rd['state_field']
             raw_val = getattr(state, field, None)
@@ -177,6 +179,14 @@ class GaugeRenderer:
                 value_str = rd['format'].format(raw_val)
             self.draw_readout(canvas, rd['label'], value_str, rd['unit'],
                               rd['pos'], rd['font_scale'])
+
+    def draw_page_dots(self, canvas: np.ndarray, page: int, total: int = 2) -> None:
+        cy = self._h - 10
+        spacing = 16
+        cx0 = self._w // 2 - (total - 1) * spacing // 2
+        for i in range(total):
+            color = tuple(self._s['value_color']) if i == page else (70, 70, 70)
+            cv2.circle(canvas, (cx0 + i * spacing, cy), 4, color, -1, cv2.LINE_AA)
 
     def _draw_clt_fuel_fills(self, canvas: np.ndarray, state) -> None:
         fill_cfg = self._g.get('fill_svgs', {})
@@ -205,13 +215,15 @@ class GaugeRenderer:
         self._put_centered_text(canvas, label, cx, cy + r + 12,
                                 color, font_scale=0.35)
 
-    def render_frame(self, canvas: np.ndarray, state, interp: dict) -> None:
+    def render_frame(self, canvas: np.ndarray, state, interp: dict,
+                     page: int = 0) -> None:
         np.copyto(canvas, self._bg)
         self.draw_tachometer(canvas, state.rpm)
         self.draw_speedometer(canvas, state.speed_kph,
                               gps_fix=getattr(state, 'gps_fix', True))
         self._draw_clt_fuel_fills(canvas, state)
-        self.draw_center_panel(canvas, state)
+        self.draw_center_panel(canvas, state, page)
+        self.draw_page_dots(canvas, page)
         warnings = self._collect_warnings(state)
         pulse = abs(math.sin(time.monotonic() * 2.5))
         warn_y = self._h - 45
