@@ -118,5 +118,5 @@ fill_svgs:
     path:      "assets/fuel fill.svg"
     anchor_x:  486
     anchor_y:  624
-    min_val:   0
-    max_val:   100
+    min_val:   0.0
+    max_val:   1.0
