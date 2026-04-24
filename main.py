@@ -1,7 +1,7 @@
 # main.py
 """Nova Dashboard — main entry point.
 Launches CAN and GPS daemon threads, then runs the 30 FPS render loop.
-Uses pygame with SDL fbcon backend for reliable Pi framebuffer display.
+Uses pygame with SDL Wayland backend under the Weston compositor.
 """
 from __future__ import annotations
 import os
