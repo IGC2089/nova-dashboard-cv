@@ -106,6 +106,9 @@ def main() -> None:
                 t = time.monotonic()
                 snap.rpm       = 3000 + 2500 * math.sin(t * 0.4)
                 snap.speed_kph = 120  + 100  * math.sin(t * 0.3)
+                snap.clt_c     = 85 + 15 * abs(math.sin(t * 0.05))
+                snap.fuel_pct  = 0.3 + 0.5 * abs(math.sin(t * 0.05))
+                snap.afr       = 14.0 + 2.0 * math.sin(t * 0.25)
                 snap.gps_fix   = True
 
             renderer.render_frame(canvas, snap, interp, page)

@@ -188,14 +188,6 @@ class GaugeRenderer:
             if val is None:
                 continue
             pct = max(0.0, min(1.0, (val - cfg['min_val']) / (cfg['max_val'] - cfg['min_val'])))
-            # DEBUG
-            in_fills = name in self._fills
-            f = self._fills.get(name)
-            print(f'[DBG] {name}: val={val:.2f} pct={pct:.3f} in_fills={in_fills}', end='')
-            if f:
-                print(f' sx={f["sx"]} sy={f["sy"]} sw={f["sw"]} sh={f["sh"]}', end='')
-                cv2.rectangle(canvas, (f['sx'], f['sy']), (f['sx']+f['sw'], f['sy']+f['sh']), (0,255,0), 2)
-            print()
             self._draw_fill_svg(canvas, name, pct)
 
     def draw_warning_icon(self, canvas: np.ndarray, cx: int, cy: int,
