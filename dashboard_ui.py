@@ -125,27 +125,39 @@ class GaugeRenderer:
     def draw_speedometer(self, canvas: np.ndarray, speed_kph: float,
                          gps_fix: bool = True) -> None:
         cfg = self._g['speedometer']
-        cx_s, cy_s = self._svg_pt(cfg['center'][0], cfg['center'][1])
         pct = max(0.0, min(1.0, (speed_kph - cfg['min_val']) / (cfg['max_val'] - cfg['min_val'])))
         self._draw_fill_svg(canvas, 'tachometer', pct)
-        if gps_fix:
-            speed_str = f"{int(speed_kph)}"
-            color = self._s['value_color']
-        else:
-            speed_str = "---"
-            color = self._s['label_color']
-        self._put_centered_text(canvas, speed_str, cx_s, cy_s + int(38 * self._scale),
-                                color, font_scale=0.75, thickness=2)
-        self._put_centered_text(canvas, 'km/h', cx_s, cy_s + int(58 * self._scale),
-                                self._s['label_color'], font_scale=0.30)
+
+        dc = cfg.get('display_center', cfg['center'])
+        cx_s, cy_s = self._svg_pt(dc[0], dc[1])
+
+        speed_str = f"{int(speed_kph)}" if gps_fix else "---"
+        color = tuple(self._s['value_color']) if gps_fix else tuple(self._s['label_color'])
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 2.0
+        thickness = 3
+        (tw, th), _ = cv2.getTextSize(speed_str, font, font_scale, thickness)
+        pad = 6
+        cv2.rectangle(canvas,
+                       (cx_s - tw // 2 - pad, cy_s - th - pad),
+                       (cx_s + tw // 2 + pad, cy_s + th // 2 + pad),
+                       (0, 0, 0), -1)
+        cv2.putText(canvas, speed_str,
+                    (cx_s - tw // 2, cy_s + th // 2),
+                    font, font_scale, color, thickness, cv2.LINE_AA)
+
+        self._put_centered_text(canvas, 'km/h', cx_s, cy_s + int(30 * self._scale),
+                                self._s['label_color'], font_scale=0.35)
+
         dot_color = cfg['arc_color'] if gps_fix else self._s['warning_red']
         cv2.circle(canvas,
-                   (cx_s, cy_s + int(72 * self._scale)),
+                   (cx_s, cy_s + int(45 * self._scale)),
                    max(2, int(4 * self._scale)),
                    tuple(dot_color), -1, cv2.LINE_AA)
         self._put_centered_text(canvas, 'GPS',
                                 cx_s + max(1, int(10 * self._scale)),
-                                cy_s + int(74 * self._scale),
+                                cy_s + int(47 * self._scale),
                                 self._s['label_color'], font_scale=0.3)
 
     def draw_readout(self, canvas: np.ndarray, label: str, value_str: str,

@@ -28,6 +28,7 @@ tachometer:
 
 speedometer:
   center:            [1627, 380]
+  display_center:    [537, 340]
   arc_width:         80
   min_val:           0
   max_val:           240
