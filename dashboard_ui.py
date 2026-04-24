@@ -121,11 +121,6 @@ class GaugeRenderer:
         cx_s, cy_s = self._svg_pt(cfg['center'][0], cfg['center'][1])
         pct = max(0.0, min(1.0, (rpm - cfg['min_val']) / (cfg['max_val'] - cfg['min_val'])))
         self._draw_fill_svg(canvas, 'speedometer', pct)
-        rpm_str = f"{int(rpm):,}"
-        self._put_centered_text(canvas, rpm_str, cx_s, cy_s + int(38 * self._scale),
-                                self._s['value_color'], font_scale=0.75, thickness=2)
-        self._put_centered_text(canvas, 'RPM', cx_s, cy_s + int(58 * self._scale),
-                                self._s['label_color'], font_scale=0.30)
 
     def draw_speedometer(self, canvas: np.ndarray, speed_kph: float,
                          gps_fix: bool = True) -> None:
