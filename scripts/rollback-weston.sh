@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-REPO=/home/pi/nova-dashboard-cv
 
 echo "=== Stopping Weston stack ==="
 systemctl stop nova-openauto.service         2>/dev/null || true
@@ -13,6 +12,14 @@ systemctl disable nova-openauto.service         2>/dev/null || true
 systemctl disable nova-dashboard-wayland.service 2>/dev/null || true
 systemctl disable nova-weston.service            2>/dev/null || true
 systemctl disable nova-network.service           2>/dev/null || true
+
+echo "=== Checking KMS service exists ==="
+if ! systemctl cat nova-dashboard.service &>/dev/null; then
+    echo "ERROR: nova-dashboard.service not found in systemd."
+    echo "The original KMS service was not installed or was removed."
+    echo "Manual recovery: deploy scripts/nova-dashboard.service to /etc/systemd/system/ first."
+    exit 1
+fi
 
 echo "=== Restoring KMS-direct dashboard service ==="
 systemctl daemon-reload
