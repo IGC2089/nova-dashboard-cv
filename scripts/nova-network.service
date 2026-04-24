@@ -1,0 +1,17 @@
+[Unit]
+Description=Nova WiFi AP (hostapd + dnsmasq)
+After=network.target
+Before=nova-weston.service
+
+[Service]
+Type=forking
+ExecStartPre=/sbin/ip addr replace 192.168.50.1/24 dev wlan0
+ExecStart=/usr/sbin/hostapd -B /etc/hostapd/nova-hostapd.conf -P /run/hostapd-nova.pid
+ExecStartPost=/usr/sbin/dnsmasq --conf-file=/etc/dnsmasq-nova.conf --pid-file=/run/dnsmasq-nova.pid
+PIDFile=/run/hostapd-nova.pid
+ExecStop=/bin/kill $(cat /run/hostapd-nova.pid)
+ExecStopPost=/bin/kill $(cat /run/dnsmasq-nova.pid)
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target
