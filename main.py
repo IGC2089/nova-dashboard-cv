@@ -14,8 +14,8 @@ import logging
 import numpy as np
 import cv2
 
-os.environ.setdefault('SDL_VIDEODRIVER', 'kmsdrm')
-os.environ.setdefault('SDL_NOMOUSE', '1')
+os.environ.setdefault('SDL_VIDEODRIVER', 'wayland')
+os.environ.setdefault('WAYLAND_DISPLAY', 'wayland-1')
 import pygame
 
 from vehicle_state import VehicleState
@@ -74,7 +74,7 @@ def main() -> None:
 
     _quit_plymouth()
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
     pygame.mouse.set_visible(False)
     clock = pygame.time.Clock()
 
