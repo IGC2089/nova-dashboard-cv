@@ -61,7 +61,8 @@ class GaugeRenderer:
             img = cv2.imdecode(np.frombuffer(png_bytes, np.uint8), cv2.IMREAD_UNCHANGED)
             # anchor_x, anchor_y are BOTTOM-LEFT of fill SVG in cluster-map coords
             sx, sy = self._svg_pt(cfg['anchor_x'], cfg['anchor_y'] - svg_h)
-            fills[name] = {'img': img, 'sx': sx, 'sy': sy, 'sw': screen_w, 'sh': screen_h}
+            fills[name] = {'img': img, 'sx': sx, 'sy': sy, 'sw': screen_w, 'sh': screen_h,
+                           'opacity': cfg.get('opacity', 1.0)}
         return fills
 
     def _draw_fill_svg(self, canvas: np.ndarray, name: str, pct: float) -> None:
@@ -89,8 +90,9 @@ class GaugeRenderer:
             return
         src = img[src_y1:src_y2, src_x1:src_x2]
         dst = canvas[dst_y1:dst_y2, dst_x1:dst_x2]
+        opacity = f.get('opacity', 1.0)
         if img.shape[2] == 4:
-            alpha = src[:, :, 3:4].astype(np.float32) / 255.0
+            alpha = src[:, :, 3:4].astype(np.float32) / 255.0 * opacity
             canvas[dst_y1:dst_y2, dst_x1:dst_x2] = (
                 dst * (1.0 - alpha) + src[:, :, :3] * alpha
             ).astype(np.uint8)

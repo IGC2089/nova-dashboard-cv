@@ -113,6 +113,7 @@ fill_svgs:
     anchor_y:  624
     min_val:   60
     max_val:   120
+    opacity:   1.0
 
   fuel:
     path:      "assets/fuel fill.svg"
@@ -120,3 +121,4 @@ fill_svgs:
     anchor_y:  624
     min_val:   0.0
     max_val:   1.0
+    opacity:   1.0
