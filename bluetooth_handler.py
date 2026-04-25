@@ -11,6 +11,7 @@ from vehicle_state import VehicleState
 log = logging.getLogger(__name__)
 
 POLL_INTERVAL = 1.0  # seconds between D-Bus polls
+ALLOWED_COMMANDS = frozenset({"Play", "Pause", "Next", "Previous", "Stop"})
 
 
 class AVRCPPoller:
@@ -44,21 +45,22 @@ class BluetoothHandler(threading.Thread):
     def __init__(self, state: VehicleState):
         super().__init__(daemon=True, name="BluetoothHandler")
         self._state = state
-        self._running = False
+        self._stop_event = threading.Event()
         self._cmd_lock = threading.Lock()
         self._pending_cmd: Optional[str] = None
 
     def send_command(self, cmd: str) -> None:
-        """Thread-safe: queue a playback command (Next/Previous/Play/Pause)."""
+        """Thread-safe: queue a playback command."""
+        if cmd not in ALLOWED_COMMANDS:
+            log.warning("Rejected unknown BT command: %r", cmd)
+            return
         with self._cmd_lock:
             self._pending_cmd = cmd
 
     def stop(self) -> None:
-        self._running = False
+        self._stop_event.set()
 
     def run(self) -> None:
-        self._running = True
-        # Import dbus lazily so the module loads without dbus on dev machines
         try:
             import dbus
         except ImportError:
@@ -67,15 +69,19 @@ class BluetoothHandler(threading.Thread):
 
         bus = dbus.SystemBus()
         poller = AVRCPPoller()
+        consecutive_failures = 0
 
-        while self._running:
+        while not self._stop_event.is_set():
             try:
                 self._poll_once(bus, poller, dbus)
+                consecutive_failures = 0
             except Exception:
-                log.debug("BT poll error", exc_info=True)
+                consecutive_failures += 1
+                level = logging.WARNING if consecutive_failures >= 3 else logging.DEBUG
+                log.log(level, "BT poll error (failure #%d)", consecutive_failures, exc_info=True)
                 self._write_disconnected()
 
-            time.sleep(POLL_INTERVAL)
+            self._stop_event.wait(POLL_INTERVAL)
 
     def _poll_once(self, bus, poller: AVRCPPoller, dbus) -> None:
         """Find first MediaPlayer1 object and read its properties."""
@@ -86,10 +92,12 @@ class BluetoothHandler(threading.Thread):
         objects = manager.GetManagedObjects()
 
         player_path = None
+        ctrl_path = None
         for path, ifaces in objects.items():
             if "org.bluez.MediaPlayer1" in ifaces:
                 player_path = path
-                break
+            if "org.bluez.MediaControl1" in ifaces:
+                ctrl_path = path
 
         if player_path is None:
             self._write_disconnected()
@@ -101,16 +109,18 @@ class BluetoothHandler(threading.Thread):
             self._pending_cmd = None
 
         if cmd:
-            try:
-                ctrl_path = str(player_path).rsplit("/player", 1)[0]
-                ctrl = dbus.Interface(
-                    bus.get_object("org.bluez", ctrl_path),
-                    "org.bluez.MediaControl1",
-                )
-                getattr(ctrl, cmd)()
-                log.debug("BT command sent: %s", cmd)
-            except Exception:
-                log.debug("BT command failed: %s", cmd, exc_info=True)
+            if ctrl_path:
+                try:
+                    ctrl = dbus.Interface(
+                        bus.get_object("org.bluez", ctrl_path),
+                        "org.bluez.MediaControl1",
+                    )
+                    getattr(ctrl, cmd)()
+                    log.debug("BT command sent: %s", cmd)
+                except Exception:
+                    log.warning("BT command failed: %s", cmd, exc_info=True)
+            else:
+                log.warning("No MediaControl1 path found, cannot send command: %s", cmd)
 
         props_iface = dbus.Interface(
             bus.get_object("org.bluez", player_path),
