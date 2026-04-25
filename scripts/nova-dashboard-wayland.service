@@ -9,7 +9,7 @@ User=root
 Environment=XDG_RUNTIME_DIR=/run/user/0
 Environment=WAYLAND_DISPLAY=wayland-1
 Environment=SDL_VIDEODRIVER=wayland
-Environment=SDL_APP_ID=nova-dashboard
+Environment=SDL_VIDEO_WAYLAND_WMCLASS=nova-dashboard
 Environment=HOME=/root
 WorkingDirectory=/home/pi/nova-dashboard-cv
 ExecStartPre=-/bin/bash /home/pi/nova-dashboard-cv/scripts/setup_can.sh
