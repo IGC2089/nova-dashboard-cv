@@ -3,7 +3,9 @@ set -euo pipefail
 REPO=/home/pi/nova-dashboard-cv
 
 echo "=== Installing Sway ==="
-apt-get install -y sway avahi-daemon hostapd dnsmasq
+apt-get install -y sway seatd avahi-daemon hostapd dnsmasq
+systemctl enable seatd
+systemctl start seatd
 
 echo "=== Configuring wlan0 static IP ==="
 # Add static IP assignment to dhcpcd.conf if not already present
