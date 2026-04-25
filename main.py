@@ -88,6 +88,7 @@ def main() -> None:
     log.info("Bluetooth handler started")
     log.info("Dashboard started — targeting %d FPS", TARGET_FPS)
 
+    snap = VehicleState()
     try:
         while running:
             for event in pygame.event.get():
