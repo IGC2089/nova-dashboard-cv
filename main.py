@@ -1,7 +1,7 @@
 # main.py
 """Nova Dashboard — main entry point.
 Launches CAN and GPS daemon threads, then runs the 30 FPS render loop.
-Uses pygame with SDL fbcon backend for reliable Pi framebuffer display.
+Uses pygame with SDL Wayland backend under the Weston compositor.
 """
 from __future__ import annotations
 import os
@@ -14,14 +14,15 @@ import logging
 import numpy as np
 import cv2
 
-os.environ.setdefault('SDL_VIDEODRIVER', 'kmsdrm')
-os.environ.setdefault('SDL_NOMOUSE', '1')
+os.environ.setdefault('SDL_VIDEODRIVER', 'wayland')
+os.environ.setdefault('WAYLAND_DISPLAY', 'wayland-1')
 import pygame
 
 from vehicle_state import VehicleState
 from can_handler import CANListener
 from gps_handler import GPSListener
 from dashboard_ui import GaugeRenderer
+from bluetooth_handler import BluetoothHandler
 from config_loader import load_style, load_gauges
 
 logging.basicConfig(
@@ -55,6 +56,7 @@ def main() -> None:
 
     can_thread = CANListener(state, channel='can0')
     gps_thread = GPSListener(state)
+    bt_thread = BluetoothHandler(state)
 
     interp = {}
     page = 0
@@ -74,7 +76,7 @@ def main() -> None:
 
     _quit_plymouth()
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.NOFRAME)
     pygame.mouse.set_visible(False)
     clock = pygame.time.Clock()
 
@@ -82,8 +84,11 @@ def main() -> None:
 
     can_thread.start()
     gps_thread.start()
+    bt_thread.start()
+    log.info("Bluetooth handler started")
     log.info("Dashboard started — targeting %d FPS", TARGET_FPS)
 
+    snap = VehicleState()
     try:
         while running:
             for event in pygame.event.get():
@@ -94,7 +99,21 @@ def main() -> None:
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if swipe_start_x is not None:
                         dx = event.pos[0] - swipe_start_x
-                        if dx < -SWIPE_THRESHOLD:
+                        if abs(dx) < SWIPE_THRESHOLD:
+                            # Tap — check media controls on page 0
+                            if page == 0:
+                                tx, ty = event.pos
+                                if ty > 410 and 200 <= tx <= 600:
+                                    if tx < 350:
+                                        bt_thread.send_command("Previous")
+                                    elif tx < 450:
+                                        if snap.bt_playing:
+                                            bt_thread.send_command("Pause")
+                                        else:
+                                            bt_thread.send_command("Play")
+                                    else:
+                                        bt_thread.send_command("Next")
+                        elif dx < -SWIPE_THRESHOLD:
                             page = min(TOTAL_PAGES - 1, page + 1)
                         elif dx > SWIPE_THRESHOLD:
                             page = max(0, page - 1)
@@ -112,6 +131,9 @@ def main() -> None:
                 snap.gps_fix   = True
 
             renderer.render_frame(canvas, snap, interp, page)
+            if page == 0:
+                renderer.draw_media_player(canvas, snap)
+            renderer.draw_warnings(canvas, snap)
 
             rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
             surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))
@@ -124,6 +146,8 @@ def main() -> None:
         log.info("Stopping threads...")
         can_thread.stop()
         gps_thread.stop()
+        bt_thread.stop()
+        bt_thread.join(timeout=2.0)
         can_thread.join(timeout=2.0)
         gps_thread.join(timeout=2.0)
         pygame.quit()

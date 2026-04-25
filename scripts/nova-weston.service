@@ -1,0 +1,19 @@
+[Unit]
+Description=Weston Wayland Compositor
+After=nova-network.service
+Requires=nova-network.service
+
+[Service]
+Type=simple
+User=root
+Environment=XDG_RUNTIME_DIR=/run/user/0
+ExecStartPre=/bin/mkdir -p /run/user/0
+ExecStartPre=/bin/chmod 700 /run/user/0
+ExecStart=/usr/bin/weston --config=/etc/xdg/weston/weston.ini --log=/var/log/weston.log
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
