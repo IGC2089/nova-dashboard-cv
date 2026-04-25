@@ -265,7 +265,13 @@ class GaugeRenderer:
         self._draw_clt_fuel_fills(canvas, state)
         self.draw_center_panel(canvas, state, page)
         self.draw_page_dots(canvas, page)
+        self.draw_warnings(canvas, state)
+
+    def draw_warnings(self, canvas: np.ndarray, state) -> None:
+        """Draw overtemp/AFR warning icons. Call after draw_media_player() so they render on top."""
         warnings = self._collect_warnings(state)
+        if not warnings:
+            return
         pulse = abs(math.sin(time.monotonic() * 2.5))
         warn_y = self._h - 45
         warn_cx = self._w // 2
