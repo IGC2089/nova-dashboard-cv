@@ -8,9 +8,8 @@ Type=simple
 User=root
 Environment=XDG_RUNTIME_DIR=/run/user/0
 Environment=WLR_DRM_DEVICES=/dev/dri/card1
+Environment=WLR_RENDER_DRM_DEVICE=/dev/dri/renderD128
 Environment=WLR_NO_HARDWARE_CURSORS=1
-Environment=WLR_RENDERER=pixman
-Environment=WLR_DRM_NO_ATOMIC=1
 Environment=LIBSEAT_BACKEND=seatd
 ExecStartPre=/bin/mkdir -p /run/user/0
 ExecStartPre=/bin/chmod 700 /run/user/0
