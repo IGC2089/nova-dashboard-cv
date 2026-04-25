@@ -25,6 +25,13 @@ class VehicleState:
     # Fuel level (0.0–1.0)
     fuel_pct: float = 0.5
 
+    # Bluetooth media (AVRCP)
+    bt_connected: bool = False
+    bt_playing: bool = False
+    bt_title: str = ""
+    bt_artist: str = ""
+    bt_album: str = ""
+
     # Threading (excluded from snapshot)
     lock: Optional[threading.Lock] = field(
         default_factory=threading.Lock, repr=False, compare=False
@@ -47,5 +54,10 @@ class VehicleState:
                 trip_km=self.trip_km,
                 gps_fix=self.gps_fix,
                 fuel_pct=self.fuel_pct,
+                bt_connected=self.bt_connected,
+                bt_playing=self.bt_playing,
+                bt_title=self.bt_title,
+                bt_artist=self.bt_artist,
+                bt_album=self.bt_album,
                 lock=None,
             )

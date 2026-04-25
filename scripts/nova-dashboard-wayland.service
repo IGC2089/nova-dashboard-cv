@@ -1,0 +1,25 @@
+[Unit]
+Description=Nova Dashboard (Wayland client)
+After=nova-sway.service
+Requires=nova-sway.service
+
+[Service]
+Type=simple
+User=root
+Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment=WAYLAND_DISPLAY=wayland-1
+Environment=SDL_VIDEODRIVER=wayland
+Environment=SDL_VIDEO_WAYLAND_WMCLASS=nova-dashboard
+Environment=HOME=/root
+WorkingDirectory=/home/pi/nova-dashboard-cv
+ExecStartPre=-/bin/bash /home/pi/nova-dashboard-cv/scripts/setup_can.sh
+ExecStart=/home/pi/nova-dashboard-cv/.venv/bin/python3 /home/pi/nova-dashboard-cv/main.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+KillMode=mixed
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target
