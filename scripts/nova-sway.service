@@ -7,7 +7,6 @@ Requires=nova-network.service seatd.service
 Type=simple
 User=root
 Environment=XDG_RUNTIME_DIR=/run/user/0
-Environment=WLR_BACKENDS=drm
 Environment=WLR_DRM_DEVICES=/dev/dri/card1
 Environment=WLR_NO_HARDWARE_CURSORS=1
 Environment=LIBSEAT_BACKEND=seatd
