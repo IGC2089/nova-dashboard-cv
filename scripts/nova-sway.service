@@ -10,6 +10,7 @@ Environment=XDG_RUNTIME_DIR=/run/user/0
 Environment=WLR_BACKENDS=drm
 Environment=WLR_DRM_DEVICES=/dev/dri/card1
 Environment=WLR_NO_HARDWARE_CURSORS=1
+Environment=LIBSEAT_BACKEND=direct
 ExecStartPre=/bin/mkdir -p /run/user/0
 ExecStartPre=/bin/chmod 700 /run/user/0
 ExecStart=/usr/bin/sway -c /etc/sway/nova.conf
