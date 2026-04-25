@@ -3,7 +3,7 @@ set -euo pipefail
 REPO=/home/pi/nova-dashboard-cv
 
 echo "=== Installing Sway ==="
-apt-get install -y sway seatd avahi-daemon hostapd dnsmasq
+apt-get install -y sway seatd avahi-daemon hostapd dnsmasq libdbus-1-dev python3-dev
 systemctl enable seatd
 systemctl start seatd
 
@@ -29,15 +29,17 @@ echo "=== Installing systemd services ==="
 install -Dm644 "$REPO/scripts/nova-network.service"           /etc/systemd/system/nova-network.service
 install -Dm644 "$REPO/scripts/nova-sway.service"              /etc/systemd/system/nova-sway.service
 install -Dm644 "$REPO/scripts/nova-dashboard-wayland.service" /etc/systemd/system/nova-dashboard-wayland.service
-install -Dm644 "$REPO/scripts/nova-openauto.service"          /etc/systemd/system/nova-openauto.service
 
 echo "=== Switching from KMS service to Wayland stack ==="
 systemctl disable nova-dashboard.service 2>/dev/null || true
+systemctl disable nova-openauto.service 2>/dev/null || true
 systemctl daemon-reload
 systemctl enable nova-network.service
 systemctl enable nova-sway.service
 systemctl enable nova-dashboard-wayland.service
-systemctl enable nova-openauto.service
+
+echo "=== Installing Python dbus bindings ==="
+"$REPO/.venv/bin/pip" install dbus-python
 
 echo ""
 echo "Setup complete. Reboot to activate."
