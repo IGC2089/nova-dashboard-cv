@@ -1,0 +1,22 @@
+[Unit]
+Description=Sway Wayland Compositor
+After=nova-network.service
+Requires=nova-network.service
+
+[Service]
+Type=simple
+User=root
+Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment=WLR_BACKENDS=drm
+Environment=WLR_DRM_DEVICES=/dev/dri/card1
+Environment=WLR_NO_HARDWARE_CURSORS=1
+ExecStartPre=/bin/mkdir -p /run/user/0
+ExecStartPre=/bin/chmod 700 /run/user/0
+ExecStart=/usr/bin/sway -c /etc/sway/nova.conf
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

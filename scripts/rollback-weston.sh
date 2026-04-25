@@ -4,13 +4,13 @@ set -euo pipefail
 echo "=== Stopping Weston stack ==="
 systemctl stop nova-openauto.service         2>/dev/null || true
 systemctl stop nova-dashboard-wayland.service 2>/dev/null || true
-systemctl stop nova-weston.service            2>/dev/null || true
+systemctl stop nova-sway.service            2>/dev/null || true
 systemctl stop nova-network.service           2>/dev/null || true
 
 echo "=== Disabling Weston stack services ==="
 systemctl disable nova-openauto.service         2>/dev/null || true
 systemctl disable nova-dashboard-wayland.service 2>/dev/null || true
-systemctl disable nova-weston.service            2>/dev/null || true
+systemctl disable nova-sway.service            2>/dev/null || true
 systemctl disable nova-network.service           2>/dev/null || true
 
 echo "=== Checking KMS service exists ==="

@@ -1,7 +1,7 @@
 [Unit]
 Description=OpenAuto Android Auto
-After=nova-weston.service avahi-daemon.service
-Requires=nova-weston.service
+After=nova-sway.service avahi-daemon.service
+Requires=nova-sway.service
 Wants=avahi-daemon.service
 
 [Service]
