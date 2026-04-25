@@ -171,6 +171,56 @@ class GaugeRenderer:
             self.draw_readout(canvas, rd['label'], value_str, rd['unit'],
                               rd['pos'], rd['font_scale'])
 
+    def draw_media_player(self, canvas: np.ndarray, state) -> None:
+        """Render Bluetooth media player in center zone x=200..600, y=0..480."""
+        # Resolve colors: support both nested colors dict and flat style dict.
+        colors = self._s.get("colors", {})
+        amber = tuple(colors.get("amber",
+                      self._s.get("warning_amber", [43, 179, 235])))
+        white = tuple(colors.get("white",
+                      self._s.get("value_color", [255, 255, 255])))
+        gray = tuple(colors.get("gray",
+                     self._s.get("label_color", [170, 170, 170])))
+
+        # Dark background for center zone
+        canvas[:, 200:600] = (10, 10, 10)
+
+        if not state.bt_connected:
+            self._draw_no_bt(canvas, gray, amber)
+            return
+
+        # "MEDIA" header
+        self._put_centered_text(canvas, "MEDIA", 400, 24, list(amber), font_scale=0.5)
+
+        # Album art placeholder (280x280, centered in zone)
+        art_x1, art_y1, art_x2, art_y2 = 260, 40, 540, 320
+        cv2.rectangle(canvas, (art_x1, art_y1), (art_x2, art_y2), (40, 40, 40), -1)
+        cv2.rectangle(canvas, (art_x1, art_y1), (art_x2, art_y2), amber, 1)
+        self._put_centered_text(canvas, "( music )", 400, 185, list(amber), font_scale=0.7)
+
+        # Track title (truncated to 28 chars)
+        title = (state.bt_title or "Unknown")[:28]
+        self._put_centered_text(canvas, title, 400, 345, list(white), font_scale=0.65)
+
+        # Artist
+        artist = (state.bt_artist or "")[:28]
+        if artist:
+            self._put_centered_text(canvas, artist, 400, 370, list(gray), font_scale=0.55)
+
+        # Divider
+        cv2.line(canvas, (220, 390), (580, 390), amber, 1)
+
+        # Playback controls
+        play_label = "||" if state.bt_playing else " >"
+        for label, cx in [("<|", 300), (play_label, 400), ("|>", 500)]:
+            self._put_centered_text(canvas, label, cx, 445, list(amber),
+                                    font_scale=0.9, thickness=2)
+
+    def _draw_no_bt(self, canvas: np.ndarray, gray: tuple, amber: tuple) -> None:
+        """Draw 'no Bluetooth device' placeholder in center zone."""
+        self._put_centered_text(canvas, "BLUETOOTH", 400, 220, list(amber), font_scale=0.7)
+        self._put_centered_text(canvas, "Pair your phone", 400, 256, list(gray), font_scale=0.55)
+
     def draw_page_dots(self, canvas: np.ndarray, page: int, total: int = 2) -> None:
         cy = self._h - 10
         spacing = 16
