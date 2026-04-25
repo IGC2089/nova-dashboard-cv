@@ -13,7 +13,11 @@ Environment=WLR_NO_HARDWARE_CURSORS=1
 Environment=LIBSEAT_BACKEND=seatd
 ExecStartPre=/bin/mkdir -p /run/user/0
 ExecStartPre=/bin/chmod 700 /run/user/0
+ExecStartPre=/usr/bin/chvt 7
 ExecStart=/usr/bin/sway -c /etc/sway/nova.conf
+StandardInput=tty
+TTYPath=/dev/tty7
+TTYVHangup=yes
 Restart=on-failure
 RestartSec=3
 StandardOutput=journal
