@@ -1,7 +1,7 @@
 [Unit]
 Description=Nova WiFi AP (hostapd + dnsmasq)
 After=network.target
-Before=nova-weston.service
+Before=nova-sway.service
 
 [Service]
 Type=forking

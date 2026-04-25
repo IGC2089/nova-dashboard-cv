@@ -33,6 +33,8 @@ install -Dm644 "$REPO/scripts/nova-dashboard-wayland.service" /etc/systemd/syste
 echo "=== Switching from KMS service to Wayland stack ==="
 systemctl disable nova-dashboard.service 2>/dev/null || true
 systemctl disable nova-openauto.service 2>/dev/null || true
+systemctl stop    nova-weston.service    2>/dev/null || true
+systemctl disable nova-weston.service    2>/dev/null || true
 systemctl daemon-reload
 systemctl enable nova-network.service
 systemctl enable nova-sway.service
