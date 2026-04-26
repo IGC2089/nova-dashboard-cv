@@ -90,7 +90,7 @@ fill_svgs:
     path:        "assets/speedometer fill.svg"
     panel:       left_panel
     state_field: speed_kph
-    anchor_x:    135
+    anchor_x:    158
     anchor_y:    536
     min_val:     0
     max_val:     240
@@ -100,7 +100,7 @@ fill_svgs:
     path:        "assets/tachometer fill.svg"
     panel:       right_panel
     state_field: rpm
-    anchor_x:    605
+    anchor_x:    582
     anchor_y:    529
     min_val:     0
     max_val:     6000
@@ -110,7 +110,7 @@ fill_svgs:
     path:        "assets/fuel fill.svg"
     panel:       left_panel
     state_field: fuel_pct
-    anchor_x:    233
+    anchor_x:    256
     anchor_y:    521
     min_val:     0.0
     max_val:     1.0
