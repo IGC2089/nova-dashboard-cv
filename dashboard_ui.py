@@ -214,8 +214,6 @@ class GaugeRenderer:
         gray = tuple(colors.get("gray",
                      self._s.get("label_color", [170, 170, 170])))
 
-        canvas[:, 200:600] = (10, 10, 10)
-
         if not state.bt_connected:
             self._draw_no_bt(canvas, gray, amber)
             return
