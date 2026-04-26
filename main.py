@@ -131,9 +131,6 @@ def main() -> None:
                 snap.gps_fix   = True
 
             renderer.render_frame(canvas, snap, interp, page)
-            if page == 0:
-                renderer.draw_media_player(canvas, snap)
-            renderer.draw_warnings(canvas, snap)
 
             rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
             surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))
