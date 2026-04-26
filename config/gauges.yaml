@@ -36,49 +36,49 @@ center_panel:
     - label:       "BATT"
       state_field: batt_v
       unit:        "V"
-      pos:         [290, 140]
+      pos:         [330, 110]
       format:      "{:.1f}"
       font_scale:  0.9
 
     - label:       "IGN"
       state_field: ign_advance
       unit:        "deg"
-      pos:         [510, 140]
+      pos:         [470, 110]
       format:      "{:.1f}"
       font_scale:  0.9
 
     - label:       "MAP"
       state_field: map_kpa
       unit:        "kPa"
-      pos:         [290, 240]
+      pos:         [330, 200]
       format:      "{:.0f}"
       font_scale:  0.9
 
     - label:       "CLT"
       state_field: clt_c
       unit:        "C"
-      pos:         [510, 240]
+      pos:         [470, 200]
       format:      "{:.0f}"
       font_scale:  0.9
 
     - label:       "AFR"
       state_field: afr
       unit:        ""
-      pos:         [400, 320]
+      pos:         [400, 295]
       format:      "{:.1f}"
       font_scale:  1.8
 
     - label:       "ODO"
       state_field: odo_km
       unit:        "km"
-      pos:         [290, 410]
+      pos:         [330, 390]
       format:      "{:.0f}"
       font_scale:  0.7
 
     - label:       "TRIP"
       state_field: trip_km
       unit:        "km"
-      pos:         [510, 410]
+      pos:         [470, 390]
       format:      "{:.1f}"
       font_scale:  0.7
 
