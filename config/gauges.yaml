@@ -87,7 +87,7 @@ center_panel:
 # Tune these values after visual inspection on the Pi.
 fill_svgs:
   speed:
-    path:        "assets/tachometer fill.svg"
+    path:        "assets/speedometer fill.svg"
     panel:       left_panel
     state_field: speed_kph
     anchor_x:    140
@@ -97,7 +97,7 @@ fill_svgs:
     opacity:     1.0
 
   rpm:
-    path:        "assets/speedometer fill.svg"
+    path:        "assets/tachometer fill.svg"
     panel:       right_panel
     state_field: rpm
     anchor_x:    640
