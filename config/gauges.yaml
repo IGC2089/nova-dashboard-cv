@@ -36,51 +36,51 @@ center_panel:
     - label:       "BATT"
       state_field: batt_v
       unit:        "V"
-      pos:         [330, 110]
+      pos:         [355, 160]
       format:      "{:.1f}"
-      font_scale:  0.9
+      font_scale:  0.6
 
     - label:       "IGN"
       state_field: ign_advance
       unit:        "deg"
-      pos:         [470, 110]
+      pos:         [445, 160]
       format:      "{:.1f}"
-      font_scale:  0.9
+      font_scale:  0.6
 
     - label:       "MAP"
       state_field: map_kpa
       unit:        "kPa"
-      pos:         [330, 200]
+      pos:         [355, 220]
       format:      "{:.0f}"
-      font_scale:  0.9
+      font_scale:  0.6
 
     - label:       "CLT"
       state_field: clt_c
       unit:        "C"
-      pos:         [470, 200]
+      pos:         [445, 220]
       format:      "{:.0f}"
-      font_scale:  0.9
+      font_scale:  0.6
 
     - label:       "AFR"
       state_field: afr
       unit:        ""
-      pos:         [400, 295]
+      pos:         [400, 285]
       format:      "{:.1f}"
-      font_scale:  1.8
+      font_scale:  1.2
 
     - label:       "ODO"
       state_field: odo_km
       unit:        "km"
-      pos:         [330, 390]
+      pos:         [355, 345]
       format:      "{:.0f}"
-      font_scale:  0.7
+      font_scale:  0.5
 
     - label:       "TRIP"
       state_field: trip_km
       unit:        "km"
-      pos:         [470, 390]
+      pos:         [445, 345]
       format:      "{:.1f}"
-      font_scale:  0.7
+      font_scale:  0.5
 
 # fill_svgs: anchor_x/anchor_y are BOTTOM-LEFT of the fill image
 # in the panel's own SVG coordinate space. Fill grows upward.

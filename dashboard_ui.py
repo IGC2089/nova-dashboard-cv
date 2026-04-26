@@ -300,14 +300,15 @@ class GaugeRenderer:
         if page == 0:
             self.draw_media_player(canvas, state)
 
-        # Layer 3: gauge panels — only on page 0 (page 1 shows info readouts over background)
-        if page == 0:
-            for panel in self._panels.values():
-                self._composite_rgba(canvas, panel['layer'])
+        # Layer 3: gauge panels (RGBA, transparent centers let media show through)
+        for panel in self._panels.values():
+            self._composite_rgba(canvas, panel['layer'])
 
-            # Value fills and speed text on top of panels
-            self._draw_all_fills(canvas, state)
-            self._draw_speed_text(canvas, state)
+        # Value fills on top of panels
+        self._draw_all_fills(canvas, state)
+
+        # Speed readout
+        self._draw_speed_text(canvas, state)
 
         # Detail readouts (page 1)
         self.draw_center_panel(canvas, state, page)
