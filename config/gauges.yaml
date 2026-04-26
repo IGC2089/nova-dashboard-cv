@@ -12,7 +12,7 @@ layers:
     native_height: 600
     anchor_x: 0        # screen x of panel left edge
     anchor_width: 400  # screen pixels wide
-    speed_display: [442, 291]  # speed number position in left.svg SVG coordinates
+    speed_display: [454, 268]  # speed number position in left.svg SVG coordinates
 
   right_panel:
     path: "assets/right.svg"
