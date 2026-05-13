@@ -349,11 +349,12 @@
             units: 'METRIC',
           }),
         });
-        var data = await resp.json();
+        var respText = await resp.text();
+        dbg.placeholder = 'HTTP ' + resp.status + ': ' + respText.substring(0, 200);
+        var data = JSON.parse(respText);
 
         if (!data.routes || !data.routes.length) {
-          var errMsg = data.error ? data.error.message : JSON.stringify(data);
-          throw new Error('Routes API: ' + errMsg);
+          throw new Error('HTTP ' + resp.status + ': ' + respText.substring(0, 150));
         }
 
         // 3. Draw polyline
