@@ -17,6 +17,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QObject, QTimer, QUrl, pyqtSignal, pyqtSlot
 from PyQt6.QtWebChannel import QWebChannel
+from PyQt6.QtWebEngineCore import QWebEngineSettings
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QMainWindow
 
@@ -55,6 +56,10 @@ class MapWindow(QMainWindow):
 
         self._view = QWebEngineView()
         self.setCentralWidget(self._view)
+
+        # Allow file:// pages to load remote URLs (needed for Google Maps)
+        self._view.page().settings().setAttribute(
+            QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
 
         # Wire up Python → JS bridge
         self._bridge = GpsBridge(gps, parent=self)
