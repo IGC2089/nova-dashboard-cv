@@ -60,8 +60,6 @@ class MapWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle('Nova Navigation')
         self.showFullScreen()
-        # Move to workspace 2 after Sway registers the window
-        QTimer.singleShot(800, self._move_to_workspace_2)
 
         self._view = QWebEngineView()
         self.setCentralWidget(self._view)
@@ -80,12 +78,20 @@ class MapWindow(QMainWindow):
         html = HTML_PATH.read_text(encoding='utf-8').replace('{{API_KEY}}', api_key)
         self._view.setHtml(html, QUrl.fromLocalFile(str(HTML_PATH)))
 
+        # Move to workspace 2 only after page has loaded so WebEngine renderer
+        # is fully initialised before the window goes to a background workspace
+        self._view.loadFinished.connect(self._on_load_finished)
+
         # Push GPS state to JS on a timer
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._bridge.push)
         self._timer.start(UPDATE_INTERVAL_MS)
 
         log.info("MapWindow ready — pushing GPS every %dms", UPDATE_INTERVAL_MS)
+
+    def _on_load_finished(self, ok: bool) -> None:
+        log.info("Page load finished (ok=%s) — moving to workspace 2", ok)
+        QTimer.singleShot(500, self._move_to_workspace_2)
 
     def _move_to_workspace_2(self) -> None:
         import subprocess
