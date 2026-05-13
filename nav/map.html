@@ -72,48 +72,88 @@
       justify-content: center;
     }
 
-    /* Search panel */
+    /* Search panel + keyboard */
     #search-panel {
       display: none;
       position: fixed;
-      top: 0; left: 0; right: 0;
-      background: rgba(10,10,10,0.92);
-      padding: 14px;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
       z-index: 30;
-      align-items: center;
-      gap: 10px;
-      border-bottom: 2px solid #EBB32B;
+      flex-direction: column;
+      align-items: stretch;
     }
     #search-panel.visible { display: flex; }
+
+    #search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px;
+      border-bottom: 2px solid #EBB32B;
+    }
     #search-input {
       flex: 1;
-      padding: 10px 14px;
-      font-size: 1rem;
+      padding: 12px 16px;
+      font-size: 1.2rem;
       border: 1px solid #555;
       border-radius: 6px;
       background: #222;
       color: #fff;
       outline: none;
+      caret-color: #EBB32B;
     }
-    #search-input:focus { border-color: #EBB32B; }
     #search-go {
-      padding: 10px 18px;
+      padding: 12px 22px;
       background: #EBB32B;
       color: #000;
       border: none;
       border-radius: 6px;
-      font: bold 1rem 'Arial', sans-serif;
+      font: bold 1.1rem 'Arial', sans-serif;
       cursor: pointer;
     }
     #search-close {
-      padding: 10px 14px;
+      padding: 12px 16px;
       background: none;
       border: 1px solid #555;
       color: #aaa;
       border-radius: 6px;
-      font-size: 1rem;
+      font-size: 1.1rem;
       cursor: pointer;
     }
+
+    /* On-screen keyboard */
+    #osk {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 8px;
+    }
+    .osk-row {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+    }
+    .osk-key {
+      flex: 1;
+      max-width: 68px;
+      height: 52px;
+      background: #2a2a2a;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 6px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    .osk-key:active { background: #EBB32B; color: #000; }
+    .osk-key.wide { max-width: 110px; font-size: 0.9rem; }
+    .osk-key.space { max-width: 300px; }
+    .osk-key.accent { background: #333; color: #EBB32B; }
 
     /* Turn banner */
     #turn-banner {
@@ -159,11 +199,30 @@
   <!-- Search button (hidden while routing) -->
   <button id="search-btn" onclick="openSearch()">&#9906;</button>
 
-  <!-- Search panel -->
+  <!-- Search panel with built-in keyboard -->
   <div id="search-panel">
-    <input id="search-input" type="text" placeholder="Search destination…" autocomplete="off"/>
-    <button id="search-go" onclick="doSearch()">Go</button>
-    <button id="search-close" onclick="closeSearch()">&#x2715;</button>
+    <div id="search-bar">
+      <input id="search-input" type="text" placeholder="Type destination…" autocomplete="off" readonly/>
+      <button id="search-go" onclick="doSearch()">Go</button>
+      <button id="search-close" onclick="closeSearch()">&#x2715;</button>
+    </div>
+    <div id="osk">
+      <div class="osk-row">
+        <div class="osk-key" onclick="oskKey('q')">q</div><div class="osk-key" onclick="oskKey('w')">w</div><div class="osk-key" onclick="oskKey('e')">e</div><div class="osk-key" onclick="oskKey('r')">r</div><div class="osk-key" onclick="oskKey('t')">t</div><div class="osk-key" onclick="oskKey('y')">y</div><div class="osk-key" onclick="oskKey('u')">u</div><div class="osk-key" onclick="oskKey('i')">i</div><div class="osk-key" onclick="oskKey('o')">o</div><div class="osk-key" onclick="oskKey('p')">p</div>
+      </div>
+      <div class="osk-row">
+        <div class="osk-key" onclick="oskKey('a')">a</div><div class="osk-key" onclick="oskKey('s')">s</div><div class="osk-key" onclick="oskKey('d')">d</div><div class="osk-key" onclick="oskKey('f')">f</div><div class="osk-key" onclick="oskKey('g')">g</div><div class="osk-key" onclick="oskKey('h')">h</div><div class="osk-key" onclick="oskKey('j')">j</div><div class="osk-key" onclick="oskKey('k')">k</div><div class="osk-key" onclick="oskKey('l')">l</div>
+      </div>
+      <div class="osk-row">
+        <div class="osk-key" onclick="oskKey('z')">z</div><div class="osk-key" onclick="oskKey('x')">x</div><div class="osk-key" onclick="oskKey('c')">c</div><div class="osk-key" onclick="oskKey('v')">v</div><div class="osk-key" onclick="oskKey('b')">b</div><div class="osk-key" onclick="oskKey('n')">n</div><div class="osk-key" onclick="oskKey('m')">m</div><div class="osk-key accent wide" onclick="oskBackspace()">&#9003;</div>
+      </div>
+      <div class="osk-row">
+        <div class="osk-key accent wide" onclick="oskKey('1')">1</div><div class="osk-key accent wide" onclick="oskKey('2')">2</div><div class="osk-key accent wide" onclick="oskKey('3')">3</div><div class="osk-key accent wide" onclick="oskKey('4')">4</div><div class="osk-key accent wide" onclick="oskKey('5')">5</div><div class="osk-key accent wide" onclick="oskKey('6')">6</div><div class="osk-key accent wide" onclick="oskKey('7')">7</div><div class="osk-key accent wide" onclick="oskKey('8')">8</div><div class="osk-key accent wide" onclick="oskKey('9')">9</div><div class="osk-key accent wide" onclick="oskKey('0')">0</div>
+      </div>
+      <div class="osk-row">
+        <div class="osk-key accent wide" onclick="oskKey(',')">','</div><div class="osk-key space" onclick="oskKey(' ')">space</div><div class="osk-key accent wide" onclick="oskKey('.')">.</div><div class="osk-key accent wide" onclick="oskKey('-')">-</div>
+      </div>
+    </div>
   </div>
 
   <!-- Turn-by-turn banner -->
@@ -180,7 +239,6 @@
     var mapReady = false;
     var directionsService, directionsRenderer;
     var routeSteps = [];
-    var autocomplete;
 
     // ------------------------------------------------------------------ map init
     function initMap() {
@@ -207,18 +265,6 @@
           strokeColor: '#4A90E2',
           strokeWeight: 6,
           strokeOpacity: 0.85,
-        }
-      });
-
-      autocomplete = new google.maps.places.Autocomplete(
-        document.getElementById('search-input'),
-        { types: ['geocode', 'establishment'] }
-      );
-      autocomplete.addListener('place_changed', function() {
-        var place = autocomplete.getPlace();
-        if (place && place.geometry) {
-          requestRoute(place.geometry.location);
-          closeSearch();
         }
       });
 
@@ -256,7 +302,6 @@
     function openSearch() {
       document.getElementById('search-panel').classList.add('visible');
       document.getElementById('search-btn').style.display = 'none';
-      setTimeout(function() { document.getElementById('search-input').focus(); }, 100);
     }
 
     function closeSearch() {
@@ -274,15 +319,20 @@
           requestRoute(results[0].geometry.location);
           closeSearch();
         } else {
+          document.getElementById('search-input').value = '';
           document.getElementById('search-input').placeholder = 'Place not found — try again';
         }
       });
     }
 
-    // Enter key triggers search
-    document.getElementById('search-input').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') doSearch();
-    });
+    // ------------------------------------------------------------------ on-screen keyboard
+    function oskKey(ch) {
+      document.getElementById('search-input').value += ch;
+    }
+    function oskBackspace() {
+      var el = document.getElementById('search-input');
+      el.value = el.value.slice(0, -1);
+    }
 
     // ------------------------------------------------------------------ routing
     function requestRoute(destination) {
@@ -370,7 +420,7 @@
   </script>
 
   <script
-    src="https://maps.googleapis.com/maps/api/js?key={{API_KEY}}&libraries=places&callback=initMap"
+    src="https://maps.googleapis.com/maps/api/js?key={{API_KEY}}&callback=initMap"
     async defer>
   </script>
 </body>
