@@ -87,6 +87,8 @@
 
     // ------------------------------------------------------------------ map init
     function initMap() {
+      document.getElementById('no-fix').textContent = 'initMap called';
+      document.getElementById('no-fix').classList.add('visible');
       map = new google.maps.Map(document.getElementById('map'), {
         zoom: 17,
         center: { lat: 0, lng: 0 },
