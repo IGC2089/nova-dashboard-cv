@@ -64,6 +64,21 @@ def main() -> None:
     SWIPE_THRESHOLD = 50
     TOTAL_PAGES = 2
 
+    # Launch nav as background process on workspace 2
+    nav_proc = None
+    maps_key = os.environ.get('GOOGLE_MAPS_KEY', '')
+    if maps_key:
+        nav_env = {**os.environ,
+                   'QT_QPA_PLATFORM': 'wayland',
+                   'XDG_RUNTIME_DIR': '/run/user/0',
+                   'WAYLAND_DISPLAY': 'wayland-1',
+                   'GOOGLE_MAPS_KEY': maps_key}
+        nav_script = os.path.join(os.path.dirname(__file__), 'nav', 'map_ui.py')
+        nav_proc = subprocess.Popen([sys.executable, nav_script], env=nav_env)
+        log.info("Nav process started (pid %d)", nav_proc.pid)
+    else:
+        log.warning("GOOGLE_MAPS_KEY not set — nav screen disabled")
+
     running = True
 
     def _shutdown(sig, frame):
@@ -114,7 +129,12 @@ def main() -> None:
                                     else:
                                         bt_thread.send_command("Next")
                         elif dx < -SWIPE_THRESHOLD:
-                            page = min(TOTAL_PAGES - 1, page + 1)
+                            if page < TOTAL_PAGES - 1:
+                                page += 1
+                            elif nav_proc is not None:
+                                # Swipe past last page → switch to nav workspace
+                                subprocess.run(['swaymsg', 'workspace', '2'],
+                                               check=False, capture_output=True)
                         elif dx > SWIPE_THRESHOLD:
                             page = max(0, page - 1)
                     swipe_start_x = None
@@ -147,6 +167,8 @@ def main() -> None:
         bt_thread.join(timeout=2.0)
         can_thread.join(timeout=2.0)
         gps_thread.join(timeout=2.0)
+        if nav_proc is not None:
+            nav_proc.terminate()
         pygame.quit()
         log.info("Clean shutdown complete")
 

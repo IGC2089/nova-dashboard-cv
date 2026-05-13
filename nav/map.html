@@ -53,6 +53,25 @@
       z-index: 15;
     }
 
+    /* Home button */
+    #home-btn {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      width: 48px;
+      height: 48px;
+      background: rgba(0,0,0,0.65);
+      border: 1px solid #EBB32B;
+      border-radius: 50%;
+      color: #EBB32B;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     /* Search button */
     #search-btn {
       position: fixed;
@@ -196,6 +215,9 @@
   <div id="no-fix">NO GPS FIX</div>
   <div id="speed">-- km/h</div>
 
+  <!-- Home button — returns to dashboard workspace -->
+  <button id="home-btn" onclick="goHome()">&#8962;</button>
+
   <!-- Search button (hidden while routing) -->
   <button id="search-btn" onclick="openSearch()">&#9906;</button>
 
@@ -284,6 +306,13 @@
     function applyPosition(data) {
       map.setHeading(data.heading);
       map.setCenter(offsetForward({ lat: data.lat, lng: data.lon }, data.heading, forwardMeters()));
+    }
+
+    // ------------------------------------------------------------------ home
+    function goHome() {
+      if (typeof channel !== 'undefined' && channel.objects.gps) {
+        channel.objects.gps.go_home();
+      }
     }
 
     // ------------------------------------------------------------------ search

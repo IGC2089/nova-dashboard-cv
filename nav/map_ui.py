@@ -29,7 +29,7 @@ UPDATE_INTERVAL_MS = 500
 
 
 class GpsBridge(QObject):
-    """Exposes GPS data to the JavaScript side via QWebChannel."""
+    """Exposes GPS data and dashboard control to the JavaScript side via QWebChannel."""
 
     position_changed = pyqtSignal(str)   # emits JSON string
 
@@ -47,12 +47,21 @@ class GpsBridge(QObject):
             'fix':     pos.fix,
         }))
 
+    @pyqtSlot()
+    def go_home(self) -> None:
+        """Switch Sway focus back to the dashboard workspace."""
+        import subprocess
+        subprocess.run(['swaymsg', 'workspace', '1'],
+                       check=False, capture_output=True)
+
 
 class MapWindow(QMainWindow):
     def __init__(self, gps: GpsRfcomm, api_key: str):
         super().__init__()
         self.setWindowTitle('Nova Navigation')
         self.showFullScreen()
+        # Move to workspace 2 after Sway registers the window
+        QTimer.singleShot(800, self._move_to_workspace_2)
 
         self._view = QWebEngineView()
         self.setCentralWidget(self._view)
@@ -77,6 +86,12 @@ class MapWindow(QMainWindow):
         self._timer.start(UPDATE_INTERVAL_MS)
 
         log.info("MapWindow ready — pushing GPS every %dms", UPDATE_INTERVAL_MS)
+
+    def _move_to_workspace_2(self) -> None:
+        import subprocess
+        subprocess.run(['swaymsg', 'move', 'container', 'to', 'workspace', '2'],
+                       check=False, capture_output=True)
+        log.info("Nav moved to Sway workspace 2")
 
     def keyPressEvent(self, event):
         from PyQt6.QtCore import Qt
