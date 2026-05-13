@@ -74,7 +74,7 @@ def main() -> None:
                    'WAYLAND_DISPLAY': 'wayland-1',
                    'GOOGLE_MAPS_KEY': maps_key}
         nav_script = os.path.join(os.path.dirname(__file__), 'nav', 'map_ui.py')
-        nav_proc = subprocess.Popen([sys.executable, nav_script], env=nav_env)
+        nav_proc = subprocess.Popen(['python3', nav_script], env=nav_env)
         log.info("Nav process started (pid %d)", nav_proc.pid)
     else:
         log.warning("GOOGLE_MAPS_KEY not set — nav screen disabled")
