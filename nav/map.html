@@ -262,6 +262,7 @@
     var map;
     var lastPos = null;
     var mapReady = false;
+    var gpsChannel = null;
     var routePolyline = null;
     var routeSteps = []; // [{endLat, endLng, instruction}]
     var routeEta = null; // Date object of arrival time
@@ -288,6 +289,7 @@
 
     // ------------------------------------------------------------------ GPS bridge
     new QWebChannel(qt.webChannelTransport, function(channel) {
+      gpsChannel = channel;
       channel.objects.gps.position_changed.connect(function(json) {
         var data = JSON.parse(json);
         document.getElementById('no-fix').classList.toggle('visible', !data.fix);
@@ -310,8 +312,8 @@
 
     // ------------------------------------------------------------------ home
     function goHome() {
-      if (typeof channel !== 'undefined' && channel.objects.gps) {
-        channel.objects.gps.go_home();
+      if (gpsChannel) {
+        gpsChannel.objects.gps.go_home();
       }
     }
 
