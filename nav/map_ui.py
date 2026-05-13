@@ -97,6 +97,8 @@ class MapWindow(QMainWindow):
         import subprocess
         subprocess.run(['swaymsg', 'move', 'container', 'to', 'workspace', '2'],
                        check=False, capture_output=True)
+        subprocess.run(['swaymsg', 'fullscreen', 'enable'],
+                       check=False, capture_output=True)
         log.info("Nav moved to Sway workspace 2")
 
     def keyPressEvent(self, event):
