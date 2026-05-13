@@ -313,14 +313,24 @@
     function doSearch() {
       var query = document.getElementById('search-input').value.trim();
       if (!query) return;
+      var btn = document.getElementById('search-go');
+      btn.textContent = '…';
+      btn.disabled = true;
       var geocoder = new google.maps.Geocoder();
       geocoder.geocode({ address: query }, function(results, status) {
+        btn.textContent = 'Go';
+        btn.disabled = false;
         if (status === 'OK' && results.length) {
+          if (!lastPos) {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-input').placeholder = 'No GPS fix yet — try again';
+            return;
+          }
           requestRoute(results[0].geometry.location);
           closeSearch();
         } else {
           document.getElementById('search-input').value = '';
-          document.getElementById('search-input').placeholder = 'Place not found — try again';
+          document.getElementById('search-input').placeholder = 'Not found (' + status + ') — try again';
         }
       });
     }
