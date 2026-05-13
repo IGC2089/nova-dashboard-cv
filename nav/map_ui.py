@@ -102,8 +102,10 @@ def main() -> None:
 
     # Qt app — Wayland-friendly flags; --no-sandbox required when running as root
     os.environ.setdefault('QT_QPA_PLATFORM', 'wayland')
+    flags = '--remote-debugging-port=9222'
     if os.geteuid() == 0:
-        os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--no-sandbox'
+        flags += ' --no-sandbox'
+    os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = flags
     app = QApplication(sys.argv)
     window = MapWindow(gps, api_key=args.key)
     ret = app.exec()
