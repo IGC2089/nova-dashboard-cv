@@ -325,6 +325,7 @@
         origin: new google.maps.LatLng(lastPos.lat, lastPos.lon),
         destination: query,
         travelMode: google.maps.TravelMode.DRIVING,
+        region: 'gt',
       }, function(result, status) {
         btn.textContent = 'Go';
         btn.disabled = false;
@@ -357,6 +358,7 @@
         origin: new google.maps.LatLng(lastPos.lat, lastPos.lon),
         destination: destination,
         travelMode: google.maps.TravelMode.DRIVING,
+        region: 'gt',
       }, function(result, status) {
         if (status === 'OK') {
           directionsRenderer.setDirections(result);
