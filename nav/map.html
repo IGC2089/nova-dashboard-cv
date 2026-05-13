@@ -307,10 +307,12 @@
       btn.textContent = '…';
       btn.disabled = true;
 
+      var dbg = document.getElementById('search-input');
       try {
         // 1. Find place with Places API (New)
         var destLatLng = null;
         try {
+          dbg.placeholder = 'Searching place…';
           var { places } = await google.maps.places.Place.searchByText({
             textQuery: query,
             fields: ['location'],
@@ -319,8 +321,13 @@
           });
           if (places && places.length) {
             destLatLng = { latitude: places[0].location.lat(), longitude: places[0].location.lng() };
+            dbg.placeholder = 'Place found, routing…';
+          } else {
+            dbg.placeholder = 'Place not found, trying address…';
           }
-        } catch (e) {}
+        } catch (e) {
+          dbg.placeholder = 'Places err: ' + e.message + ' — trying address…';
+        }
 
         // 2. Compute route via Routes API (New)
         var destination = destLatLng
@@ -344,7 +351,10 @@
         });
         var data = await resp.json();
 
-        if (!data.routes || !data.routes.length) throw new Error('no route');
+        if (!data.routes || !data.routes.length) {
+          var errMsg = data.error ? data.error.message : JSON.stringify(data);
+          throw new Error('Routes API: ' + errMsg);
+        }
 
         // 3. Draw polyline
         if (routePolyline) routePolyline.setMap(null);
@@ -368,8 +378,8 @@
         if (lastPos) updateTurnBanner(lastPos);
 
       } catch (e) {
-        document.getElementById('search-input').value = '';
-        document.getElementById('search-input').placeholder = 'Not found — try a street address';
+        dbg.value = '';
+        dbg.placeholder = 'ERROR: ' + e.message;
       }
 
       btn.textContent = 'Go';
