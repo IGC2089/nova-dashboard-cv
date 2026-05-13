@@ -313,20 +313,28 @@
         var destLatLng = null;
         try {
           dbg.placeholder = 'Searching place…';
-          var { places } = await google.maps.places.Place.searchByText({
+          var placeResult = await google.maps.places.Place.searchByText({
             textQuery: query,
-            fields: ['location'],
+            fields: ['location', 'displayName'],
             locationBias: { lat: lastPos.lat, lng: lastPos.lon },
             region: 'gt',
           });
+          var places = placeResult.places;
           if (places && places.length) {
             destLatLng = { latitude: places[0].location.lat(), longitude: places[0].location.lng() };
-            dbg.placeholder = 'Place found, routing…';
+            dbg.placeholder = 'Found: ' + places[0].displayName + ' @ ' + destLatLng.latitude.toFixed(4) + ',' + destLatLng.longitude.toFixed(4);
+            await new Promise(function(r){ setTimeout(r, 1500); });
           } else {
-            dbg.placeholder = 'Place not found, trying address…';
+            dbg.placeholder = 'Places: 0 results for "' + query + '"';
+            await new Promise(function(r){ setTimeout(r, 2000); });
           }
         } catch (e) {
-          dbg.placeholder = 'Places err: ' + e.message + ' — trying address…';
+          dbg.placeholder = 'Places API error: ' + e.message;
+          await new Promise(function(r){ setTimeout(r, 2000); });
+        }
+
+        if (!destLatLng) {
+          throw new Error('Place not found. Try a full street address.');
         }
 
         // 2. Compute route via Routes API (New)
