@@ -309,38 +309,27 @@
 
       var dbg = document.getElementById('search-input');
       try {
-        // 1. Find place with Places API (New)
+        // 1. Geocode via REST API with location bias
         var destLatLng = null;
-        try {
-          dbg.placeholder = 'Searching place…';
-          var placeResult = await google.maps.places.Place.searchByText({
-            textQuery: query,
-            fields: ['location', 'displayName'],
-            locationBias: { lat: lastPos.lat, lng: lastPos.lon },
-            region: 'gt',
-          });
-          var places = placeResult.places;
-          if (places && places.length) {
-            destLatLng = { latitude: places[0].location.lat(), longitude: places[0].location.lng() };
-            dbg.placeholder = 'Found: ' + places[0].displayName + ' @ ' + destLatLng.latitude.toFixed(4) + ',' + destLatLng.longitude.toFixed(4);
-            await new Promise(function(r){ setTimeout(r, 1500); });
-          } else {
-            dbg.placeholder = 'Places: 0 results for "' + query + '"';
-            await new Promise(function(r){ setTimeout(r, 2000); });
-          }
-        } catch (e) {
-          dbg.placeholder = 'Places API error: ' + e.message;
-          await new Promise(function(r){ setTimeout(r, 2000); });
-        }
-
-        if (!destLatLng) {
-          throw new Error('Place not found. Try a full street address.');
+        dbg.placeholder = 'Searching…';
+        var geoUrl = 'https://maps.googleapis.com/maps/api/geocode/json'
+          + '?address=' + encodeURIComponent(query)
+          + '&region=gt'
+          + '&location=' + lastPos.lat + ',' + lastPos.lon
+          + '&key=' + MAPS_KEY;
+        var geoResp = await fetch(geoUrl);
+        var geoData = await geoResp.json();
+        if (geoData.status === 'OK' && geoData.results.length) {
+          var loc = geoData.results[0].geometry.location;
+          destLatLng = { latitude: loc.lat, longitude: loc.lng };
+          dbg.placeholder = 'Found: ' + geoData.results[0].formatted_address;
+          await new Promise(function(r){ setTimeout(r, 1000); });
+        } else {
+          throw new Error('Not found (' + geoData.status + '). Try a street address.');
         }
 
         // 2. Compute route via Routes API (New)
-        var destination = destLatLng
-          ? { location: { latLng: destLatLng } }
-          : { address: query };
+        var destination = { location: { latLng: destLatLng } };
 
         var resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
           method: 'POST',
