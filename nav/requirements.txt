@@ -1,0 +1,4 @@
+pyserial>=3.5
+pynmea2>=1.19
+PyQt6>=6.6
+PyQt6-WebEngine>=6.6

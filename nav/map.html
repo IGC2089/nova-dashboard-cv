@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nova Navigation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #1a1a1a; overflow: hidden; }
+    #map { width: 100%; height: 100%; }
+
+    /* Vehicle icon — fixed at horizontal center, vertical bottom-third */
+    #vehicle {
+      position: fixed;
+      left: 50%;
+      top: 66.6%;
+      transform: translate(-50%, -50%);
+      width: 0;
+      height: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #vehicle svg {
+      filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));
+    }
+
+    /* No-fix overlay */
+    #no-fix {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      color: #EBB32B;
+      font: bold 1.2rem 'Arial', sans-serif;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.15em;
+      z-index: 20;
+    }
+    #no-fix.visible { display: flex; }
+
+    /* Speed badge */
+    #speed {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(0,0,0,0.65);
+      color: #fff;
+      font: bold 2rem 'Arial', sans-serif;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #EBB32B;
+      z-index: 15;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Amber arrow — always pointing up since map rotates to heading-up -->
+  <div id="vehicle">
+    <svg width="36" height="48" viewBox="0 0 36 48">
+      <polygon points="18,0 36,48 18,36 0,48" fill="#EBB32B" stroke="#000" stroke-width="1.5"/>
+    </svg>
+  </div>
+
+  <div id="no-fix">NO GPS FIX</div>
+  <div id="speed">-- km/h</div>
+
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <script>
+    var map, marker;
+    var lastHeading = 0;
+    var lastPos = null;
+    var mapReady = false;
+
+    // ------------------------------------------------------------------ map init
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 17,
+        center: { lat: 0, lng: 0 },
+        mapTypeId: 'roadmap',
+        disableDefaultUI: true,
+        gestureHandling: 'none',
+        keyboardShortcuts: false,
+        backgroundColor: '#1a1a1a',
+        styles: [
+          { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+          { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+          { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] }
+        ]
+      });
+
+      mapReady = true;
+
+      // Apply any buffered position
+      if (lastPos) applyPosition(lastPos);
+    }
+
+    // ------------------------------------------------------------------ GPS bridge
+    new QWebChannel(qt.webChannelTransport, function(channel) {
+      channel.objects.gps.position_changed.connect(function(json) {
+        var data = JSON.parse(json);
+        document.getElementById('no-fix').classList.toggle('visible', !data.fix);
+        document.getElementById('speed').textContent =
+          data.fix ? Math.round(data.speed) + ' km/h' : '-- km/h';
+
+        if (!data.fix) return;
+
+        lastPos = data;
+        if (mapReady) applyPosition(data);
+      });
+    });
+
+    // ------------------------------------------------------------------ apply GPS
+    function applyPosition(data) {
+      var pos = { lat: data.lat, lng: data.lon };
+      var heading = data.heading;
+
+      // Rotate map so direction of travel faces up
+      map.setHeading(heading);
+
+      // Offset map center forward so vehicle sits at bottom-third of viewport
+      var center = offsetForward(pos, heading, forwardMeters());
+      map.setCenter(center);
+    }
+
+    // Move a point 'meters' forward along 'heading' (degrees from North)
+    function offsetForward(pos, heading, meters) {
+      var R = 6371000;
+      var h = heading * Math.PI / 180;
+      var lat1 = pos.lat * Math.PI / 180;
+      var lon1 = pos.lng * Math.PI / 180;
+      var d = meters / R;
+      var lat2 = Math.asin(
+        Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(h)
+      );
+      var lon2 = lon1 + Math.atan2(
+        Math.sin(h) * Math.sin(d) * Math.cos(lat1),
+        Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
+      );
+      return { lat: lat2 * 180 / Math.PI, lng: lon2 * 180 / Math.PI };
+    }
+
+    // How many metres correspond to 1/6 of the viewport height at current zoom
+    function forwardMeters() {
+      var zoom = map ? map.getZoom() : 17;
+      var lat  = map ? map.getCenter().lat() : 0;
+      var metersPerPx = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
+      return metersPerPx * (window.innerHeight / 6);
+    }
+  </script>
+
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key={{API_KEY}}&callback=initMap"
+    async defer>
+  </script>
+</body>
+</html>
