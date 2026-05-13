@@ -229,6 +229,7 @@
   <div id="turn-banner">
     <span id="turn-instruction"></span>
     <span id="turn-distance"></span>
+    <span id="turn-eta" style="color:#aaa;font-size:0.95rem;white-space:nowrap"></span>
     <button id="cancel-route" onclick="cancelRoute()">&#x2715; End</button>
   </div>
 
@@ -240,6 +241,7 @@
     var mapReady = false;
     var routePolyline = null;
     var routeSteps = []; // [{endLat, endLng, instruction}]
+    var routeEta = null; // Date object of arrival time
 
     // ------------------------------------------------------------------ map init
     function initMap() {
@@ -340,7 +342,7 @@
           headers: {
             'Content-Type': 'application/json',
             'X-Goog-Api-Key': MAPS_KEY,
-            'X-Goog-FieldMask': 'routes.polyline.encodedPolyline,routes.legs.steps.navigationInstruction,routes.legs.steps.endLocation',
+            'X-Goog-FieldMask': 'routes.duration,routes.polyline.encodedPolyline,routes.legs.steps.navigationInstruction,routes.legs.steps.endLocation',
           },
           body: JSON.stringify({
             origin: { location: { latLng: { latitude: lastPos.lat, longitude: lastPos.lon } } },
@@ -364,7 +366,7 @@
           strokeColor: '#4A90E2', strokeWeight: 6, strokeOpacity: 0.85,
         });
 
-        // 4. Extract steps
+        // 4. Extract steps and ETA
         routeSteps = (data.routes[0].legs[0].steps || []).map(function(s) {
           return {
             endLat: s.endLocation.latLng.latitude,
@@ -372,6 +374,8 @@
             instruction: s.navigationInstruction ? s.navigationInstruction.instructions : '',
           };
         });
+        var durationSec = parseInt(data.routes[0].duration);
+        routeEta = new Date(Date.now() + durationSec * 1000);
 
         document.getElementById('search-btn').style.display = 'none';
         closeSearch();
@@ -397,6 +401,7 @@
     function cancelRoute() {
       if (routePolyline) { routePolyline.setMap(null); routePolyline = null; }
       routeSteps = [];
+      routeEta = null;
       document.getElementById('turn-banner').classList.remove('visible');
       document.getElementById('search-btn').style.display = 'flex';
     }
@@ -414,6 +419,11 @@
         ? (minDist / 1000).toFixed(1) + ' km' : Math.round(minDist) + ' m';
       document.getElementById('turn-instruction').textContent = step.instruction;
       document.getElementById('turn-distance').textContent = distText;
+      if (routeEta) {
+        var h = routeEta.getHours(), m = routeEta.getMinutes();
+        document.getElementById('turn-eta').textContent =
+          'ETA ' + h + ':' + (m < 10 ? '0' : '') + m;
+      }
       document.getElementById('turn-banner').classList.add('visible');
     }
 
