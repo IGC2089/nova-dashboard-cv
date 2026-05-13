@@ -311,7 +311,6 @@
       try {
         // 1. Find place via Places API (New) REST
         var destLatLng = null;
-        dbg.placeholder = 'Searching…';
         var placeResp = await fetch('https://places.googleapis.com/v1/places:searchText', {
           method: 'POST',
           headers: {
@@ -331,15 +330,11 @@
         if (placeData.places && placeData.places.length) {
           var loc = placeData.places[0].location;
           destLatLng = { latitude: loc.latitude, longitude: loc.longitude };
-          dbg.placeholder = 'Found: ' + placeData.places[0].displayName.text;
-          await new Promise(function(r){ setTimeout(r, 800); });
         } else {
           throw new Error('Place not found. Try a street address.');
         }
 
         // 2. Compute route via Routes API (New)
-        var destination = { location: { latLng: destLatLng } };
-
         var resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
           method: 'POST',
           headers: {
@@ -349,18 +344,16 @@
           },
           body: JSON.stringify({
             origin: { location: { latLng: { latitude: lastPos.lat, longitude: lastPos.lon } } },
-            destination: destination,
+            destination: { location: { latLng: destLatLng } },
             travelMode: 'DRIVE',
             languageCode: 'es',
             units: 'METRIC',
           }),
         });
-        var respText = await resp.text();
-        dbg.placeholder = 'HTTP ' + resp.status + ': ' + respText.substring(0, 200);
-        var data = JSON.parse(respText);
+        var data = await resp.json();
 
         if (!data.routes || !data.routes.length) {
-          throw new Error('HTTP ' + resp.status + ': ' + respText.substring(0, 150));
+          throw new Error('No route found.');
         }
 
         // 3. Draw polyline
