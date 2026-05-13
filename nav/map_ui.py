@@ -103,7 +103,7 @@ def main() -> None:
     # Qt app — Wayland-friendly flags; --no-sandbox required when running as root
     os.environ.setdefault('QT_QPA_PLATFORM', 'wayland')
     if os.geteuid() == 0:
-        sys.argv += ['--no-sandbox']
+        os.environ['QTWEBENGINE_CHROMIUM_FLAGS'] = '--no-sandbox'
     app = QApplication(sys.argv)
     window = MapWindow(gps, api_key=args.key)
     ret = app.exec()
