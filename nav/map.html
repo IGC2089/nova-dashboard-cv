@@ -234,11 +234,12 @@
 
   <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
   <script>
+    var MAPS_KEY = '{{API_KEY}}';
     var map;
     var lastPos = null;
     var mapReady = false;
-    var directionsService, directionsRenderer;
-    var routeSteps = [];
+    var routePolyline = null;
+    var routeSteps = []; // [{endLat, endLng, instruction}]
 
     // ------------------------------------------------------------------ map init
     function initMap() {
@@ -256,18 +257,6 @@
           { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] }
         ]
       });
-
-      directionsService = new google.maps.DirectionsService();
-      directionsRenderer = new google.maps.DirectionsRenderer({
-        map: map,
-        suppressMarkers: false,
-        polylineOptions: {
-          strokeColor: '#4A90E2',
-          strokeWeight: 6,
-          strokeOpacity: 0.85,
-        }
-      });
-
       mapReady = true;
       if (lastPos) applyPosition(lastPos);
     }
@@ -279,9 +268,7 @@
         document.getElementById('no-fix').classList.toggle('visible', !data.fix);
         document.getElementById('speed').textContent =
           data.fix ? Math.round(data.speed) + ' km/h' : '-- km/h';
-
         if (!data.fix) return;
-
         lastPos = data;
         if (mapReady) {
           applyPosition(data);
@@ -292,10 +279,8 @@
 
     // ------------------------------------------------------------------ apply GPS
     function applyPosition(data) {
-      var pos = { lat: data.lat, lng: data.lon };
       map.setHeading(data.heading);
-      var center = offsetForward(pos, data.heading, forwardMeters());
-      map.setCenter(center);
+      map.setCenter(offsetForward({ lat: data.lat, lng: data.lon }, data.heading, forwardMeters()));
     }
 
     // ------------------------------------------------------------------ search
@@ -306,87 +291,101 @@
 
     function closeSearch() {
       document.getElementById('search-panel').classList.remove('visible');
-      document.getElementById('search-btn').style.display = 'flex';
+      if (!routeSteps.length) document.getElementById('search-btn').style.display = 'flex';
       document.getElementById('search-input').value = '';
     }
 
-    function doSearch() {
+    async function doSearch() {
       var query = document.getElementById('search-input').value.trim();
       if (!query) return;
       if (!lastPos) {
-        document.getElementById('search-input').value = '';
         document.getElementById('search-input').placeholder = 'No GPS fix yet — try again';
+        document.getElementById('search-input').value = '';
         return;
       }
       var btn = document.getElementById('search-go');
       btn.textContent = '…';
       btn.disabled = true;
-      var placesService = new google.maps.places.PlacesService(map);
-      placesService.findPlaceFromQuery({
-        query: query,
-        fields: ['geometry', 'name'],
-        locationBias: new google.maps.LatLng(lastPos.lat, lastPos.lon),
-      }, function(results, placeStatus) {
-        if (placeStatus === google.maps.places.PlacesServiceStatus.OK && results.length) {
-          requestRoute(results[0].geometry.location);
-          btn.textContent = 'Go';
-          btn.disabled = false;
-          closeSearch();
-        } else {
-          // Fall back to address-based routing
-          directionsService.route({
-            origin: new google.maps.LatLng(lastPos.lat, lastPos.lon),
-            destination: query,
-            travelMode: google.maps.TravelMode.DRIVING,
+
+      try {
+        // 1. Find place with Places API (New)
+        var destLatLng = null;
+        try {
+          var { places } = await google.maps.places.Place.searchByText({
+            textQuery: query,
+            fields: ['location'],
+            locationBias: { lat: lastPos.lat, lng: lastPos.lon },
             region: 'gt',
-          }, function(result, status) {
-            btn.textContent = 'Go';
-            btn.disabled = false;
-            if (status === 'OK') {
-              directionsRenderer.setDirections(result);
-              routeSteps = result.routes[0].legs[0].steps;
-              document.getElementById('search-btn').style.display = 'none';
-              closeSearch();
-              if (lastPos) updateTurnBanner(lastPos);
-            } else {
-              document.getElementById('search-input').value = '';
-              document.getElementById('search-input').placeholder = 'Not found — try a street address';
-            }
           });
-        }
-      });
+          if (places && places.length) {
+            destLatLng = { latitude: places[0].location.lat(), longitude: places[0].location.lng() };
+          }
+        } catch (e) {}
+
+        // 2. Compute route via Routes API (New)
+        var destination = destLatLng
+          ? { location: { latLng: destLatLng } }
+          : { address: query };
+
+        var resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': MAPS_KEY,
+            'X-Goog-FieldMask': 'routes.polyline.encodedPolyline,routes.legs.steps.navigationInstruction,routes.legs.steps.endLocation',
+          },
+          body: JSON.stringify({
+            origin: { location: { latLng: { latitude: lastPos.lat, longitude: lastPos.lon } } },
+            destination: destination,
+            travelMode: 'DRIVE',
+            languageCode: 'es',
+            units: 'METRIC',
+          }),
+        });
+        var data = await resp.json();
+
+        if (!data.routes || !data.routes.length) throw new Error('no route');
+
+        // 3. Draw polyline
+        if (routePolyline) routePolyline.setMap(null);
+        var path = google.maps.geometry.encoding.decodePath(data.routes[0].polyline.encodedPolyline);
+        routePolyline = new google.maps.Polyline({
+          path: path, map: map,
+          strokeColor: '#4A90E2', strokeWeight: 6, strokeOpacity: 0.85,
+        });
+
+        // 4. Extract steps
+        routeSteps = (data.routes[0].legs[0].steps || []).map(function(s) {
+          return {
+            endLat: s.endLocation.latLng.latitude,
+            endLng: s.endLocation.latLng.longitude,
+            instruction: s.navigationInstruction ? s.navigationInstruction.instructions : '',
+          };
+        });
+
+        document.getElementById('search-btn').style.display = 'none';
+        closeSearch();
+        if (lastPos) updateTurnBanner(lastPos);
+
+      } catch (e) {
+        document.getElementById('search-input').value = '';
+        document.getElementById('search-input').placeholder = 'Not found — try a street address';
+      }
+
+      btn.textContent = 'Go';
+      btn.disabled = false;
     }
 
     // ------------------------------------------------------------------ on-screen keyboard
-    function oskKey(ch) {
-      document.getElementById('search-input').value += ch;
-    }
+    function oskKey(ch) { document.getElementById('search-input').value += ch; }
     function oskBackspace() {
       var el = document.getElementById('search-input');
       el.value = el.value.slice(0, -1);
     }
 
     // ------------------------------------------------------------------ routing
-    function requestRoute(destination) {
-      if (!lastPos) return;
-      directionsService.route({
-        origin: new google.maps.LatLng(lastPos.lat, lastPos.lon),
-        destination: destination,
-        travelMode: google.maps.TravelMode.DRIVING,
-        region: 'gt',
-      }, function(result, status) {
-        if (status === 'OK') {
-          directionsRenderer.setDirections(result);
-          routeSteps = result.routes[0].legs[0].steps;
-          document.getElementById('search-btn').style.display = 'none';
-          if (lastPos) updateTurnBanner(lastPos);
-        }
-      });
-    }
-
     function cancelRoute() {
-      directionsRenderer.setMap(null);
-      directionsRenderer.setMap(map);
+      if (routePolyline) { routePolyline.setMap(null); routePolyline = null; }
       routeSteps = [];
       document.getElementById('turn-banner').classList.remove('visible');
       document.getElementById('search-btn').style.display = 'flex';
@@ -395,64 +394,43 @@
     // ------------------------------------------------------------------ turn banner
     function updateTurnBanner(data) {
       if (!routeSteps.length) return;
-
-      var nearestIdx = 0;
-      var minDist = Infinity;
+      var nearestIdx = 0, minDist = Infinity;
       for (var i = 0; i < routeSteps.length; i++) {
-        var sl = routeSteps[i].start_location;
-        var d = haversine(data.lat, data.lon, sl.lat(), sl.lng());
+        var d = haversine(data.lat, data.lon, routeSteps[i].endLat, routeSteps[i].endLng);
         if (d < minDist) { minDist = d; nearestIdx = i; }
       }
-
       var step = routeSteps[nearestIdx];
-      var distToEnd = haversine(data.lat, data.lon, step.end_location.lat(), step.end_location.lng());
-      var instructions = step.instructions.replace(/<[^>]+>/g, '');
-      var distText = distToEnd >= 1000
-        ? (distToEnd / 1000).toFixed(1) + ' km'
-        : Math.round(distToEnd) + ' m';
-
-      document.getElementById('turn-instruction').textContent = instructions;
+      var distText = minDist >= 1000
+        ? (minDist / 1000).toFixed(1) + ' km' : Math.round(minDist) + ' m';
+      document.getElementById('turn-instruction').textContent = step.instruction;
       document.getElementById('turn-distance').textContent = distText;
       document.getElementById('turn-banner').classList.add('visible');
     }
 
     // ------------------------------------------------------------------ math helpers
     function haversine(lat1, lon1, lat2, lon2) {
-      var R = 6371000;
-      var dLat = (lat2 - lat1) * Math.PI / 180;
-      var dLon = (lon2 - lon1) * Math.PI / 180;
-      var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      var R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+      var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+              Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
     function offsetForward(pos, heading, meters) {
-      var R = 6371000;
-      var h = heading * Math.PI / 180;
-      var lat1 = pos.lat * Math.PI / 180;
-      var lon1 = pos.lng * Math.PI / 180;
-      var d = meters / R;
-      var lat2 = Math.asin(
-        Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(h)
-      );
-      var lon2 = lon1 + Math.atan2(
-        Math.sin(h) * Math.sin(d) * Math.cos(lat1),
-        Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
-      );
-      return { lat: lat2 * 180 / Math.PI, lng: lon2 * 180 / Math.PI };
+      var R = 6371000, h = heading*Math.PI/180;
+      var lat1 = pos.lat*Math.PI/180, lon1 = pos.lng*Math.PI/180, d = meters/R;
+      var lat2 = Math.asin(Math.sin(lat1)*Math.cos(d)+Math.cos(lat1)*Math.sin(d)*Math.cos(h));
+      var lon2 = lon1+Math.atan2(Math.sin(h)*Math.sin(d)*Math.cos(lat1), Math.cos(d)-Math.sin(lat1)*Math.sin(lat2));
+      return { lat: lat2*180/Math.PI, lng: lon2*180/Math.PI };
     }
 
     function forwardMeters() {
-      var zoom = map ? map.getZoom() : 17;
-      var lat  = map ? map.getCenter().lat() : 0;
-      var metersPerPx = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
-      return metersPerPx * (window.innerHeight / 6);
+      var zoom = map ? map.getZoom() : 17, lat = map ? map.getCenter().lat() : 0;
+      return 156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,zoom) * (window.innerHeight/6);
     }
   </script>
 
   <script
-    src="https://maps.googleapis.com/maps/api/js?key={{API_KEY}}&libraries=places&callback=initMap"
+    src="https://maps.googleapis.com/maps/api/js?key={{API_KEY}}&libraries=places,geometry&callback=initMap"
     async defer>
   </script>
 </body>
