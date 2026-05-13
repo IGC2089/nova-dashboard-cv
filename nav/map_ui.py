@@ -90,16 +90,13 @@ class MapWindow(QMainWindow):
         log.info("MapWindow ready — pushing GPS every %dms", UPDATE_INTERVAL_MS)
 
     def _on_load_finished(self, ok: bool) -> None:
-        log.info("Page load finished (ok=%s) — moving to workspace 2", ok)
-        QTimer.singleShot(500, self._move_to_workspace_2)
+        log.info("Page load finished (ok=%s) — enabling fullscreen", ok)
+        QTimer.singleShot(300, self._enable_fullscreen)
 
-    def _move_to_workspace_2(self) -> None:
+    def _enable_fullscreen(self) -> None:
         import subprocess
-        subprocess.run(['swaymsg', 'move', 'container', 'to', 'workspace', '2'],
-                       check=False, capture_output=True)
         subprocess.run(['swaymsg', 'fullscreen', 'enable'],
                        check=False, capture_output=True)
-        log.info("Nav moved to Sway workspace 2")
 
     def keyPressEvent(self, event):
         from PyQt6.QtCore import Qt
