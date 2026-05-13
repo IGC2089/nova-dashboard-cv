@@ -91,8 +91,8 @@ def main() -> None:
     )
 
     parser = argparse.ArgumentParser(description='Nova Navigation Map')
-    parser.add_argument('--port', default='/dev/rfcomm0', help='rfcomm serial port')
-    parser.add_argument('--baud', type=int, default=9600)
+    parser.add_argument('--mac', default='94:45:60:47:0F:E0',
+                        help='Bluetooth MAC of the GPS device')
     parser.add_argument('--key', default=os.environ.get('GOOGLE_MAPS_KEY', ''),
                         help='Google Maps JavaScript API key')
     args = parser.parse_args()
@@ -101,9 +101,9 @@ def main() -> None:
         sys.exit('ERROR: Google Maps API key required. Pass --key or set GOOGLE_MAPS_KEY.')
 
     # Start GPS thread
-    gps = GpsRfcomm(port=args.port, baud=args.baud)
+    gps = GpsRfcomm(mac=args.mac)
     gps.start()
-    log.info("GPS thread started on %s", args.port)
+    log.info("GPS thread started, connecting to %s", args.mac)
 
     # Qt app — Wayland-friendly flags; --no-sandbox required when running as root
     os.environ.setdefault('QT_QPA_PLATFORM', 'wayland')
