@@ -4,6 +4,7 @@ Launches CAN and GPS daemon threads, then runs the 30 FPS render loop.
 Uses pygame with SDL Wayland backend under the Weston compositor.
 """
 from __future__ import annotations
+import glob
 import os
 import signal
 import subprocess
@@ -13,6 +14,12 @@ import math
 import logging
 import numpy as np
 import cv2
+
+
+def swaymsg(*args: str) -> None:
+    socks = glob.glob('/run/user/0/sway-ipc.*.*.sock')
+    env = {**os.environ, 'SWAYSOCK': socks[0]} if socks else os.environ
+    subprocess.run(['swaymsg', *args], env=env, check=False, capture_output=True)
 
 os.environ.setdefault('SDL_VIDEODRIVER', 'wayland')
 os.environ.setdefault('WAYLAND_DISPLAY', 'wayland-1')
@@ -133,8 +140,7 @@ def main() -> None:
                                 page += 1
                             elif nav_proc is not None:
                                 # Swipe past last page → switch to nav workspace
-                                subprocess.run(['swaymsg', 'workspace', '2'],
-                                               check=False, capture_output=True)
+                                swaymsg('workspace', '2')
                         elif dx > SWIPE_THRESHOLD:
                             page = max(0, page - 1)
                     swipe_start_x = None

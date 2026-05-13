@@ -9,11 +9,19 @@ Environment variable alternative:
 """
 from __future__ import annotations
 import argparse
+import glob
 import json
 import logging
 import os
+import subprocess
 import sys
 from pathlib import Path
+
+
+def swaymsg(*args: str) -> None:
+    socks = glob.glob('/run/user/0/sway-ipc.*.*.sock')
+    env = {**os.environ, 'SWAYSOCK': socks[0]} if socks else os.environ
+    subprocess.run(['swaymsg', *args], env=env, check=False, capture_output=True)
 
 from PyQt6.QtCore import QObject, QTimer, QUrl, pyqtSignal, pyqtSlot
 from PyQt6.QtWebChannel import QWebChannel
@@ -50,9 +58,7 @@ class GpsBridge(QObject):
     @pyqtSlot()
     def go_home(self) -> None:
         """Switch Sway focus back to the dashboard workspace."""
-        import subprocess
-        subprocess.run(['swaymsg', 'workspace', '1'],
-                       check=False, capture_output=True)
+        swaymsg('workspace', '1')
 
 
 class MapWindow(QMainWindow):
@@ -94,9 +100,7 @@ class MapWindow(QMainWindow):
         QTimer.singleShot(300, self._enable_fullscreen)
 
     def _enable_fullscreen(self) -> None:
-        import subprocess
-        subprocess.run(['swaymsg', 'fullscreen', 'enable'],
-                       check=False, capture_output=True)
+        swaymsg('fullscreen', 'enable')
 
     def keyPressEvent(self, event):
         from PyQt6.QtCore import Qt
