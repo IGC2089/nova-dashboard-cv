@@ -69,6 +69,17 @@
 
   <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
   <script>
+    window.onerror = function(msg, src, line) {
+      var d = document.getElementById('no-fix');
+      d.textContent = 'JS ERROR: ' + msg;
+      d.classList.add('visible');
+    };
+    function gm_authFailure() {
+      var d = document.getElementById('no-fix');
+      d.textContent = 'MAPS AUTH FAILED (check API key/billing)';
+      d.classList.add('visible');
+    }
+
     var map, marker;
     var lastHeading = 0;
     var lastPos = null;
