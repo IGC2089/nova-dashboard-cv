@@ -321,23 +321,38 @@
       var btn = document.getElementById('search-go');
       btn.textContent = '…';
       btn.disabled = true;
-      directionsService.route({
-        origin: new google.maps.LatLng(lastPos.lat, lastPos.lon),
-        destination: query,
-        travelMode: google.maps.TravelMode.DRIVING,
-        region: 'gt',
-      }, function(result, status) {
-        btn.textContent = 'Go';
-        btn.disabled = false;
-        if (status === 'OK') {
-          directionsRenderer.setDirections(result);
-          routeSteps = result.routes[0].legs[0].steps;
-          document.getElementById('search-btn').style.display = 'none';
+      var placesService = new google.maps.places.PlacesService(map);
+      placesService.findPlaceFromQuery({
+        query: query,
+        fields: ['geometry', 'name'],
+        locationBias: new google.maps.LatLng(lastPos.lat, lastPos.lon),
+      }, function(results, placeStatus) {
+        if (placeStatus === google.maps.places.PlacesServiceStatus.OK && results.length) {
+          requestRoute(results[0].geometry.location);
+          btn.textContent = 'Go';
+          btn.disabled = false;
           closeSearch();
-          if (lastPos) updateTurnBanner(lastPos);
         } else {
-          document.getElementById('search-input').value = '';
-          document.getElementById('search-input').placeholder = 'Not found (' + status + ') — try again';
+          // Fall back to address-based routing
+          directionsService.route({
+            origin: new google.maps.LatLng(lastPos.lat, lastPos.lon),
+            destination: query,
+            travelMode: google.maps.TravelMode.DRIVING,
+            region: 'gt',
+          }, function(result, status) {
+            btn.textContent = 'Go';
+            btn.disabled = false;
+            if (status === 'OK') {
+              directionsRenderer.setDirections(result);
+              routeSteps = result.routes[0].legs[0].steps;
+              document.getElementById('search-btn').style.display = 'none';
+              closeSearch();
+              if (lastPos) updateTurnBanner(lastPos);
+            } else {
+              document.getElementById('search-input').value = '';
+              document.getElementById('search-input').placeholder = 'Not found — try a street address';
+            }
+          });
         }
       });
     }
@@ -437,7 +452,7 @@
   </script>
 
   <script
-    src="https://maps.googleapis.com/maps/api/js?key={{API_KEY}}&callback=initMap"
+    src="https://maps.googleapis.com/maps/api/js?key={{API_KEY}}&libraries=places&callback=initMap"
     async defer>
   </script>
 </body>
