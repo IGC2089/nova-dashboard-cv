@@ -100,8 +100,10 @@ def main() -> None:
     gps.start()
     log.info("GPS thread started on %s", args.port)
 
-    # Qt app — Wayland-friendly flags
+    # Qt app — Wayland-friendly flags; --no-sandbox required when running as root
     os.environ.setdefault('QT_QPA_PLATFORM', 'wayland')
+    if os.geteuid() == 0:
+        sys.argv += ['--no-sandbox']
     app = QApplication(sys.argv)
     window = MapWindow(gps, api_key=args.key)
     ret = app.exec()
