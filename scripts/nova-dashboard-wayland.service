@@ -11,7 +11,7 @@ Environment=WAYLAND_DISPLAY=wayland-1
 Environment=SDL_VIDEODRIVER=wayland
 Environment=SDL_VIDEO_WAYLAND_WMCLASS=nova-dashboard
 Environment=HOME=/root
-Environment=GOOGLE_MAPS_KEY=AIzaSyAFvXPQxPglp-0Sgi7jv9uyXwSEO9_jdcc
+EnvironmentFile=-/etc/nova/secrets
 WorkingDirectory=/home/pi/nova-dashboard-cv
 ExecStartPre=-/bin/bash /home/pi/nova-dashboard-cv/scripts/setup_can.sh
 ExecStart=/home/pi/nova-dashboard-cv/.venv/bin/python3 /home/pi/nova-dashboard-cv/main.py
