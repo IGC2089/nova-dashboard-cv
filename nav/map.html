@@ -228,6 +228,7 @@
   <!-- Turn-by-turn banner -->
   <div id="turn-banner">
     <span id="turn-instruction"></span>
+    <span id="turn-maneuver" style="display:flex;align-items:center;flex-shrink:0"></span>
     <span id="turn-distance"></span>
     <span id="turn-eta" style="color:#aaa;font-size:0.95rem;white-space:nowrap"></span>
     <button id="cancel-route" onclick="cancelRoute()">&#x2715; End</button>
@@ -342,7 +343,7 @@
           headers: {
             'Content-Type': 'application/json',
             'X-Goog-Api-Key': MAPS_KEY,
-            'X-Goog-FieldMask': 'routes.duration,routes.polyline.encodedPolyline,routes.legs.steps.navigationInstruction,routes.legs.steps.endLocation',
+            'X-Goog-FieldMask': 'routes.duration,routes.polyline.encodedPolyline,routes.legs.steps.navigationInstruction.instructions,routes.legs.steps.navigationInstruction.maneuver,routes.legs.steps.endLocation',
           },
           body: JSON.stringify({
             origin: { location: { latLng: { latitude: lastPos.lat, longitude: lastPos.lon } } },
@@ -372,6 +373,7 @@
             endLat: s.endLocation.latLng.latitude,
             endLng: s.endLocation.latLng.longitude,
             instruction: s.navigationInstruction ? s.navigationInstruction.instructions : '',
+            maneuver: s.navigationInstruction ? s.navigationInstruction.maneuver : 'STRAIGHT',
           };
         });
         var durationSec = parseInt(data.routes[0].duration);
@@ -418,6 +420,7 @@
       var distText = minDist >= 1000
         ? (minDist / 1000).toFixed(1) + ' km' : Math.round(minDist) + ' m';
       document.getElementById('turn-instruction').textContent = step.instruction;
+      document.getElementById('turn-maneuver').innerHTML = maneuverIcon(step.maneuver);
       document.getElementById('turn-distance').textContent = distText;
       if (routeEta) {
         var h = routeEta.getHours(), m = routeEta.getMinutes();
@@ -425,6 +428,29 @@
           'ETA ' + h + ':' + (m < 10 ? '0' : '') + m;
       }
       document.getElementById('turn-banner').classList.add('visible');
+    }
+
+    // ------------------------------------------------------------------ maneuver icon
+    function maneuverIcon(maneuver) {
+      var d = {
+        'STRAIGHT':          'M12 4 L12 20 M8 8 L12 4 L16 8',
+        'TURN_LEFT':         'M18 18 L18 10 Q18 6 14 6 L8 6 M12 10 L8 6 L12 2',
+        'TURN_SLIGHT_LEFT':  'M18 18 L18 10 Q16 4 10 6 L6 8 M10 4 L6 8 L10 12',
+        'TURN_SHARP_LEFT':   'M18 18 L18 12 L8 12 L8 6 M4 10 L8 6 L12 10',
+        'TURN_RIGHT':        'M6 18 L6 10 Q6 6 10 6 L16 6 M12 10 L16 6 L12 2',
+        'TURN_SLIGHT_RIGHT': 'M6 18 L6 10 Q8 4 14 6 L18 8 M14 4 L18 8 L14 12',
+        'TURN_SHARP_RIGHT':  'M6 18 L6 12 L16 12 L16 6 M12 10 L16 6 L20 10',
+        'UTURN_LEFT':        'M16 18 L16 10 Q16 4 10 4 Q4 4 4 10 L4 14 M8 10 L4 14 L8 18',
+        'UTURN_RIGHT':       'M8 18 L8 10 Q8 4 14 4 Q20 4 20 10 L20 14 M16 10 L20 14 L16 18',
+        'ROUNDABOUT_LEFT':   'M12 4 A8 8 0 1 0 4 12 M4 12 L4 8 M4 12 L8 12',
+        'ROUNDABOUT_RIGHT':  'M12 4 A8 8 0 1 1 20 12 M20 12 L20 8 M20 12 L16 12',
+        'FORK_LEFT':         'M12 20 L12 12 L8 4 M12 12 L16 4',
+        'FORK_RIGHT':        'M12 20 L12 12 L16 4 M12 12 L8 4',
+        'DEPART':            'M12 4 L12 20 M8 8 L12 4 L16 8',
+        'DESTINATION':       'M12 2 A5 5 0 0 1 12 12 A5 5 0 0 1 12 2 M12 12 L12 20',
+      };
+      var path = d[maneuver] || d['STRAIGHT'];
+      return '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EBB32B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="' + path + '"/></svg>';
     }
 
     // ------------------------------------------------------------------ math helpers
