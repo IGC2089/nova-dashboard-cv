@@ -313,21 +313,27 @@
     function doSearch() {
       var query = document.getElementById('search-input').value.trim();
       if (!query) return;
+      if (!lastPos) {
+        document.getElementById('search-input').value = '';
+        document.getElementById('search-input').placeholder = 'No GPS fix yet — try again';
+        return;
+      }
       var btn = document.getElementById('search-go');
       btn.textContent = '…';
       btn.disabled = true;
-      var geocoder = new google.maps.Geocoder();
-      geocoder.geocode({ address: query }, function(results, status) {
+      directionsService.route({
+        origin: new google.maps.LatLng(lastPos.lat, lastPos.lon),
+        destination: query,
+        travelMode: google.maps.TravelMode.DRIVING,
+      }, function(result, status) {
         btn.textContent = 'Go';
         btn.disabled = false;
-        if (status === 'OK' && results.length) {
-          if (!lastPos) {
-            document.getElementById('search-input').value = '';
-            document.getElementById('search-input').placeholder = 'No GPS fix yet — try again';
-            return;
-          }
-          requestRoute(results[0].geometry.location);
+        if (status === 'OK') {
+          directionsRenderer.setDirections(result);
+          routeSteps = result.routes[0].legs[0].steps;
+          document.getElementById('search-btn').style.display = 'none';
           closeSearch();
+          if (lastPos) updateTurnBanner(lastPos);
         } else {
           document.getElementById('search-input').value = '';
           document.getElementById('search-input').placeholder = 'Not found (' + status + ') — try again';
@@ -347,9 +353,8 @@
     // ------------------------------------------------------------------ routing
     function requestRoute(destination) {
       if (!lastPos) return;
-      var origin = new google.maps.LatLng(lastPos.lat, lastPos.lon);
       directionsService.route({
-        origin: origin,
+        origin: new google.maps.LatLng(lastPos.lat, lastPos.lon),
         destination: destination,
         travelMode: google.maps.TravelMode.DRIVING,
       }, function(result, status) {
