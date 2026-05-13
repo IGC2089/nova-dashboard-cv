@@ -309,23 +309,32 @@
 
       var dbg = document.getElementById('search-input');
       try {
-        // 1. Geocode via REST API with location bias
+        // 1. Find place via Places API (New) REST
         var destLatLng = null;
         dbg.placeholder = 'Searching…';
-        var geoUrl = 'https://maps.googleapis.com/maps/api/geocode/json'
-          + '?address=' + encodeURIComponent(query)
-          + '&region=gt'
-          + '&location=' + lastPos.lat + ',' + lastPos.lon
-          + '&key=' + MAPS_KEY;
-        var geoResp = await fetch(geoUrl);
-        var geoData = await geoResp.json();
-        if (geoData.status === 'OK' && geoData.results.length) {
-          var loc = geoData.results[0].geometry.location;
-          destLatLng = { latitude: loc.lat, longitude: loc.lng };
-          dbg.placeholder = 'Found: ' + geoData.results[0].formatted_address;
-          await new Promise(function(r){ setTimeout(r, 1000); });
+        var placeResp = await fetch('https://places.googleapis.com/v1/places:searchText', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': MAPS_KEY,
+            'X-Goog-FieldMask': 'places.location,places.displayName',
+          },
+          body: JSON.stringify({
+            textQuery: query,
+            locationBias: { circle: {
+              center: { latitude: lastPos.lat, longitude: lastPos.lon },
+              radius: 50000,
+            }},
+          }),
+        });
+        var placeData = await placeResp.json();
+        if (placeData.places && placeData.places.length) {
+          var loc = placeData.places[0].location;
+          destLatLng = { latitude: loc.latitude, longitude: loc.longitude };
+          dbg.placeholder = 'Found: ' + placeData.places[0].displayName.text;
+          await new Promise(function(r){ setTimeout(r, 800); });
         } else {
-          throw new Error('Not found (' + geoData.status + '). Try a street address.');
+          throw new Error('Place not found. Try a street address.');
         }
 
         // 2. Compute route via Routes API (New)
