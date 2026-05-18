@@ -32,6 +32,15 @@ class VehicleState:
     bt_artist: str = ""
     bt_album: str = ""
 
+    # Bluetooth pairing
+    bt_pairing_pending: bool = False
+    bt_pairing_device: str = ''
+    bt_pairing_passkey: int = 0
+    bt_pairing_accepted: bool = False
+    bt_pairing_response: Optional[threading.Event] = field(
+        default_factory=threading.Event, repr=False, compare=False
+    )
+
     # Threading (excluded from snapshot)
     lock: Optional[threading.Lock] = field(
         default_factory=threading.Lock, repr=False, compare=False
@@ -59,5 +68,10 @@ class VehicleState:
                 bt_title=self.bt_title,
                 bt_artist=self.bt_artist,
                 bt_album=self.bt_album,
+                bt_pairing_pending=self.bt_pairing_pending,
+                bt_pairing_device=self.bt_pairing_device,
+                bt_pairing_passkey=self.bt_pairing_passkey,
+                bt_pairing_accepted=self.bt_pairing_accepted,
+                bt_pairing_response=None,
                 lock=None,
             )
