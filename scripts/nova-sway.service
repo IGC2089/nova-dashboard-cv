@@ -1,7 +1,8 @@
 [Unit]
 Description=Sway Wayland Compositor
-After=nova-network.service seatd.service
-Requires=nova-network.service seatd.service
+After=seatd.service
+Requires=seatd.service
+Wants=nova-network.service
 
 [Service]
 Type=simple
