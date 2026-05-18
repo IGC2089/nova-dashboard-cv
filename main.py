@@ -112,6 +112,12 @@ def main() -> None:
     clock = pygame.time.Clock()
 
     canvas = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
+    SPLASH_FADE_FRAMES = 36
+    splash_path = os.path.join(os.path.dirname(__file__), 'assets', 'splash_logo.png')
+    splash_img = cv2.imread(splash_path)
+    if splash_img is not None:
+        splash_img = cv2.resize(splash_img, (WIDTH, HEIGHT))
+    splash_frame = 0
 
     pairing_agent = PairingAgent(state)
     pairing_agent.start()
@@ -185,6 +191,11 @@ def main() -> None:
                 snap.gps_fix   = True
 
             renderer.render_frame(canvas, snap, interp, page)
+
+            if splash_frame < SPLASH_FADE_FRAMES and splash_img is not None:
+                alpha = 1.0 - (splash_frame / SPLASH_FADE_FRAMES)
+                cv2.addWeighted(splash_img, alpha, canvas, 1.0 - alpha, 0, canvas)
+                splash_frame += 1
 
             rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
             surf = pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))
