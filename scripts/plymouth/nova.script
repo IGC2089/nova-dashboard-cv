@@ -6,3 +6,8 @@ logo.sprite = Sprite(logo.image);
 logo.sprite.SetX(Window.GetWidth() / 2 - logo.image.GetWidth() / 2);
 logo.sprite.SetY(Window.GetHeight() / 2 - logo.image.GetHeight() / 2);
 logo.sprite.SetZ(1);
+
+fun boot-progress(time, progress) {}
+fun show-message(message) {}
+fun hide-message(message) {}
+fun quit-splash() {}
