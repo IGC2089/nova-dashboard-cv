@@ -28,8 +28,9 @@ import pygame
 from vehicle_state import VehicleState
 from can_handler import CANListener
 from gps_handler import GPSListener
-from dashboard_ui import GaugeRenderer
+from dashboard_ui import GaugeRenderer, PAIRING_ACCEPT_RECT, PAIRING_REJECT_RECT
 from bluetooth_handler import BluetoothHandler
+from pairing_agent import PairingAgent
 from config_loader import load_style, load_gauges
 
 logging.basicConfig(
@@ -104,6 +105,10 @@ def main() -> None:
 
     canvas = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
+    pairing_agent = PairingAgent(state)
+    pairing_agent.start()
+    log.info("Pairing agent started")
+
     can_thread.start()
     gps_thread.start()
     bt_thread.start()
@@ -120,6 +125,21 @@ def main() -> None:
                     swipe_start_x = event.pos[0]
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if swipe_start_x is not None:
+                        # Handle pairing dialog taps first
+                        if snap.bt_pairing_pending:
+                            tx, ty = event.pos
+                            x1a, y1a, x2a, y2a = PAIRING_ACCEPT_RECT
+                            x1r, y1r, x2r, y2r = PAIRING_REJECT_RECT
+                            if x1a <= tx <= x2a and y1a <= ty <= y2a:
+                                state.bt_pairing_accepted = True
+                                state.bt_pairing_response.set()
+                                swipe_start_x = None
+                                continue
+                            elif x1r <= tx <= x2r and y1r <= ty <= y2r:
+                                state.bt_pairing_accepted = False
+                                state.bt_pairing_response.set()
+                                swipe_start_x = None
+                                continue
                         dx = event.pos[0] - swipe_start_x
                         if abs(dx) < SWIPE_THRESHOLD:
                             # Tap — check media controls on page 0
@@ -167,6 +187,8 @@ def main() -> None:
 
     finally:
         log.info("Stopping threads...")
+        pairing_agent.stop()
+        pairing_agent.join(timeout=2.0)
         can_thread.stop()
         gps_thread.stop()
         bt_thread.stop()
