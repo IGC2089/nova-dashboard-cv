@@ -192,9 +192,10 @@ def main() -> None:
 
             renderer.render_frame(canvas, snap, interp, page)
 
-            if splash_frame < SPLASH_FADE_FRAMES and splash_img is not None:
+            if splash_img is not None and splash_frame < SPLASH_FADE_FRAMES:
                 alpha = 1.0 - (splash_frame / SPLASH_FADE_FRAMES)
-                cv2.addWeighted(splash_img, alpha, canvas, 1.0 - alpha, 0, canvas)
+                blended = cv2.addWeighted(splash_img, alpha, canvas, 1.0 - alpha, 0)
+                canvas[:] = blended
                 splash_frame += 1
 
             rgb = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)

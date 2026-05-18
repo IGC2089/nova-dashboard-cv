@@ -3,34 +3,47 @@ import cv2
 
 
 def test_splash_fade_blends_correctly():
-    """Fade at frame 0 should return splash image; at frame 35 canvas should dominate."""
+    """Blend math: verify addWeighted produces correct values at frame 0 and frame 35."""
     WIDTH, HEIGHT = 800, 480
     SPLASH_FADE_FRAMES = 36
+    splash_val, canvas_val = 200, 50
 
-    splash_img = np.full((HEIGHT, WIDTH, 3), 200, dtype=np.uint8)
-    canvas = np.full((HEIGHT, WIDTH, 3), 50, dtype=np.uint8)
+    splash_img = np.full((HEIGHT, WIDTH, 3), splash_val, dtype=np.uint8)
 
-    # Frame 0: alpha = 1.0 → result should be close to splash_img
+    # Frame 0: alpha = 1.0 → output should equal splash_val
     alpha = 1.0 - (0 / SPLASH_FADE_FRAMES)
-    result = canvas.copy()
-    cv2.addWeighted(splash_img, alpha, result, 1.0 - alpha, 0, result)
-    assert result[0, 0, 0] == 200  # splash dominates
+    canvas = np.full((HEIGHT, WIDTH, 3), canvas_val, dtype=np.uint8)
+    blended = cv2.addWeighted(splash_img, alpha, canvas, 1.0 - alpha, 0)
+    canvas[:] = blended
+    expected = int(splash_val * alpha + canvas_val * (1.0 - alpha))
+    assert abs(int(canvas[0, 0, 0]) - expected) <= 1
 
-    # Frame 35: alpha ≈ 0.03 → result should be close to canvas
+    # Frame 35: alpha ≈ 0.028 → output should be close to canvas_val
     alpha = 1.0 - (35 / SPLASH_FADE_FRAMES)
-    result = canvas.copy()
-    cv2.addWeighted(splash_img, alpha, result, 1.0 - alpha, 0, result)
-    assert result[0, 0, 0] < 60  # canvas dominates
+    canvas = np.full((HEIGHT, WIDTH, 3), canvas_val, dtype=np.uint8)
+    blended = cv2.addWeighted(splash_img, alpha, canvas, 1.0 - alpha, 0)
+    canvas[:] = blended
+    expected = int(splash_val * alpha + canvas_val * (1.0 - alpha))
+    assert abs(int(canvas[0, 0, 0]) - expected) <= 1
 
 
 def test_splash_fade_skipped_when_no_image():
-    """When splash_img is None, canvas must not be modified."""
+    """When splash_img is None the guard must not modify canvas."""
     WIDTH, HEIGHT = 800, 480
+    SPLASH_FADE_FRAMES = 36
+    canvas_val = 50
+
     splash_img = None
-    canvas = np.full((HEIGHT, WIDTH, 3), 50, dtype=np.uint8)
+    splash_frame = 0
+    canvas = np.full((HEIGHT, WIDTH, 3), canvas_val, dtype=np.uint8)
     original = canvas.copy()
 
-    if splash_img is not None:
-        cv2.addWeighted(splash_img, 1.0, canvas, 0.0, 0, canvas)
+    # Replicate the exact guard from main.py
+    if splash_img is not None and splash_frame < SPLASH_FADE_FRAMES:
+        alpha = 1.0 - (splash_frame / SPLASH_FADE_FRAMES)
+        blended = cv2.addWeighted(splash_img, alpha, canvas, 1.0 - alpha, 0)
+        canvas[:] = blended
+        splash_frame += 1
 
     assert np.array_equal(canvas, original)
+    assert splash_frame == 0
