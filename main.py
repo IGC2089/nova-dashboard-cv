@@ -33,6 +33,14 @@ from bluetooth_handler import BluetoothHandler
 from pairing_agent import PairingAgent
 from config_loader import load_style, load_gauges
 
+# Must run before any dbus.SystemBus() call (including bluetooth_handler)
+# so the singleton is created with the GLib main loop attached.
+try:
+    import dbus.mainloop.glib
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+except ImportError:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(name)s %(levelname)s %(message)s',

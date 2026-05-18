@@ -34,8 +34,7 @@ class PairingAgent(threading.Thread):
             log.warning("dbus/gi not available — pairing agent disabled")
             return
 
-        mainloop = dbus.mainloop.glib.DBusGMainLoop()
-        bus = dbus.SystemBus(mainloop=mainloop)
+        bus = dbus.SystemBus()
 
         # Attach as D-Bus service object
         self._dbus_obj = _AgentObject(bus, AGENT_PATH, self._state, self._timeout)
