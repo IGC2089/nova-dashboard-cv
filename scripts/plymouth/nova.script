@@ -1,8 +1,8 @@
-wallpaper = Image("splash_logo.png");
-sw = Window.GetWidth();
-sh = Window.GetHeight();
-scale = Math.Min(sw / wallpaper.GetWidth(), sh / wallpaper.GetHeight());
-scaled = wallpaper.Scale(wallpaper.GetWidth() * scale, wallpaper.GetHeight() * scale);
-sprite = Sprite(scaled);
-sprite.SetX((sw - scaled.GetWidth()) / 2);
-sprite.SetY((sh - scaled.GetHeight()) / 2);
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+logo.image = Image("splash_logo.png");
+logo.sprite = Sprite(logo.image);
+logo.sprite.SetX(Window.GetWidth() / 2 - logo.image.GetWidth() / 2);
+logo.sprite.SetY(Window.GetHeight() / 2 - logo.image.GetHeight() / 2);
+logo.sprite.SetZ(1);
