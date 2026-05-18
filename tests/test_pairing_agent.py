@@ -34,8 +34,11 @@ def test_request_confirmation_accept():
 
 
 def test_request_confirmation_reject():
-    import dbus
     PairingAgent = _import_agent()
+    try:
+        import dbus
+    except ImportError:
+        pytest.skip("dbus not available")
     state = VehicleState()
     agent = PairingAgent.__new__(PairingAgent)
     agent._state = state
@@ -54,8 +57,11 @@ def test_request_confirmation_reject():
 
 
 def test_request_confirmation_timeout():
-    import dbus
     PairingAgent = _import_agent()
+    try:
+        import dbus
+    except ImportError:
+        pytest.skip("dbus not available")
     state = VehicleState()
     agent = PairingAgent.__new__(PairingAgent)
     agent._state = state
