@@ -6,6 +6,10 @@ import numpy as np
 import cv2
 from typing import Optional
 
+# Pairing overlay button hit regions (x1, y1, x2, y2) — used by main.py too
+PAIRING_ACCEPT_RECT = (230, 285, 390, 335)
+PAIRING_REJECT_RECT = (410, 285, 570, 335)
+
 
 class GaugeRenderer:
     """
@@ -25,6 +29,7 @@ class GaugeRenderer:
             if key in self._g.get('layers', {})
         }
         self._fills = self._init_fill_svgs()
+        self._pairing_start: float = 0.0
 
     # ------------------------------------------------------------------ init
 
@@ -289,6 +294,56 @@ class GaugeRenderer:
             warnings.append(("LEAN", self._s['warning_red']))
         return warnings
 
+    def _draw_pairing_overlay(self, canvas: np.ndarray, state) -> None:
+        """Draw Bluetooth pairing modal on top of current canvas."""
+        # Semi-transparent scrim
+        scrim = np.zeros_like(canvas)
+        cv2.addWeighted(canvas, 0.30, scrim, 0.70, 0, canvas)
+
+        # Card background and border
+        AMBER = (0, 164, 232)   # BGR for #e8a400
+        DARK  = (22, 22, 22)
+        cv2.rectangle(canvas, (210, 130), (590, 350), DARK, -1)
+        cv2.rectangle(canvas, (210, 130), (590, 350), AMBER, 2)
+
+        # Title
+        cv2.putText(canvas, 'BLUETOOTH PAIRING',
+                    (260, 165), cv2.FONT_HERSHEY_SIMPLEX, 0.55, AMBER, 1, cv2.LINE_AA)
+
+        # Device name (truncate to 28 chars)
+        device = state.bt_pairing_device[:28]
+        cv2.putText(canvas, device,
+                    (260, 195), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+
+        # Passkey label
+        cv2.putText(canvas, 'CONFIRM CODE ON YOUR PHONE',
+                    (240, 225), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (100, 100, 100), 1, cv2.LINE_AA)
+
+        # Passkey value — large, spaced
+        passkey_str = f"{state.bt_pairing_passkey:06d}"
+        spaced = '  '.join(passkey_str)
+        cv2.putText(canvas, spaced,
+                    (248, 272), cv2.FONT_HERSHEY_SIMPLEX, 1.1, AMBER, 2, cv2.LINE_AA)
+
+        # ACCEPT button
+        ax1, ay1, ax2, ay2 = PAIRING_ACCEPT_RECT
+        cv2.rectangle(canvas, (ax1, ay1), (ax2, ay2), AMBER, -1)
+        cv2.putText(canvas, 'ACCEPT',
+                    (ax1 + 28, ay2 - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 2, cv2.LINE_AA)
+
+        # REJECT button
+        rx1, ry1, rx2, ry2 = PAIRING_REJECT_RECT
+        cv2.rectangle(canvas, (rx1, ry1), (rx2, ry2), (50, 50, 50), -1)
+        cv2.rectangle(canvas, (rx1, ry1), (rx2, ry2), (80, 80, 80), 1)
+        cv2.putText(canvas, 'REJECT',
+                    (rx1 + 28, ry2 - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (150, 150, 150), 1, cv2.LINE_AA)
+
+        # Countdown
+        elapsed = time.monotonic() - self._pairing_start
+        remaining = max(0, int(30 - elapsed))
+        cv2.putText(canvas, f'AUTO-DISMISS IN {remaining}s',
+                    (295, 345), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (80, 80, 80), 1, cv2.LINE_AA)
+
     # --------------------------------------------------------- main render
 
     def render_frame(self, canvas: np.ndarray, state, interp: dict,
@@ -318,3 +373,11 @@ class GaugeRenderer:
 
         # Warnings always on top
         self.draw_warnings(canvas, state)
+
+        # Pairing overlay — always on top of everything
+        if state.bt_pairing_pending:
+            if self._pairing_start == 0.0:
+                self._pairing_start = time.monotonic()
+            self._draw_pairing_overlay(canvas, state)
+        else:
+            self._pairing_start = 0.0
