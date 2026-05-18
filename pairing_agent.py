@@ -110,6 +110,7 @@ class _AgentObject:
         class _Obj(dbus.service.Object):
             def __init__(self, bus, path, state, timeout):
                 super().__init__(bus, path)
+                self._bus = bus
                 self._state = state
                 self._timeout = timeout
                 self._agent = PairingAgent.__new__(PairingAgent)
@@ -119,7 +120,7 @@ class _AgentObject:
             @dbus.service.method('org.bluez.Agent1',
                                  in_signature='ou', out_signature='')
             def RequestConfirmation(self, device, passkey):
-                bus = dbus.SystemBus()
+                bus = self._bus
                 try:
                     props = dbus.Interface(
                         bus.get_object('org.bluez', device),
@@ -137,6 +138,8 @@ class _AgentObject:
                 log.info("Pairing cancelled by BlueZ")
                 with self._state.lock:
                     self._state.bt_pairing_pending = False
+                    self._state.bt_pairing_accepted = False
+                self._state.bt_pairing_response.set()
 
             @dbus.service.method('org.bluez.Agent1',
                                  in_signature='o', out_signature='s')
