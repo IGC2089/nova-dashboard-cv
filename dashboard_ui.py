@@ -1,499 +1,383 @@
-"""dashboard_ui.py
-BMW iDrive 8 cluster-map style renderer for Nova Dashboard (800 × 480).
-
-Layout mirrors the Figma 'cluster - map' frame (node 17:477):
-  • Left panel  (200 px) — speed scale + fuel sub-indicator, cyan #77CEF5
-  • Center      (400 px) — info / secondary metrics / BT media
-  • Right panel (200 px) — RPM scale  + coolant sub-indicator, red #F16666
-  • Bottom bar  (40 px)  — clock | GPS/BT status | odo | bat | CLT
-
-Rendered entirely with OpenCV + NumPy into a BGR uint8 canvas.
-"""
 from __future__ import annotations
-
 import math
 import time
-import cv2
+import xml.etree.ElementTree as ET
 import numpy as np
-from typing import Dict
+import cv2
+from typing import Optional
 
-from vehicle_state import VehicleState
-
-# ── Public constants used by main.py ────────────────────────────────────────
-PAIRING_ACCEPT_RECT = (215, 295, 395, 340)
-PAIRING_REJECT_RECT = (405, 295, 585, 340)
-
-# ── Color palette (BGR) ──────────────────────────────────────────────────────
-_BG    = np.array([ 8, 10, 16], np.float32)   # near-black background
-_PANEL = np.array([10, 12, 20], np.float32)   # center area tint
-_CYAN  = (245, 206, 119)   # #77CEF5 — speed / primary
-_RED   = (102, 102, 241)   # #F16666 — RPM / secondary
-_HOT   = ( 35,  35, 255)   # #FF2323 — redline > 6k
-_GRAY  = (187, 171, 162)   # #a2abbb — labels / info
-_WHITE = (255, 255, 255)
-_AMBER = ( 43, 179, 235)   # warning amber
-_DIM   = ( 55,  65,  75)   # inactive ticks / disabled
-
-# ── Screen & gauge geometry ───────────────────────────────────────────────────
-SW, SH   = 800, 480          # screen dimensions
-GW       = 200               # gauge panel width
-TAPER    = 38                # diagonal: inner edge shifts by this px top→bottom
-TOP_PAD  = 44                # y-start of main tick zone
-BOT_PAD  = 44                # space at bottom for fill bar
-TICK_H   = SH - TOP_PAD - BOT_PAD   # 392 px tick zone height
-
-SPEED_MAX = 330.0
-RPM_MAX   = 7000.0
-CLT_MIN, CLT_MAX = 40.0, 160.0
-
-# Speed labels (value, is_major)
-_SPEED_LVLS = [
-    (330, True), (270, True), (210, True),
-    (150, True), (120, True), (90,  True),
-    (60,  True), (30,  True), (0,   True),
-]
-
-# RPM labels (value, text)
-_RPM_LVLS = [
-    (7000, '7'), (6000, '6'), (5000, '5'),
-    (4000, '4'), (3000, '3'), (2000, '2'), (1000, '1'),
-]
-
-# Fuel sub-scale on left panel (fraction 0=empty→1=full, label)
-_FUEL_MARKS = [(1.0, '1'), (0.5, '½'), (0.0, '0')]
-_FUEL_SUB_X = 82    # x-position of fuel sub-indicator within left panel
-
-# Coolant sub-scale on right panel (°C value, label)
-_CLT_MARKS  = [(150, '150'), (100, '100'), (50, '50')]
-_CLT_SUB_X  = 110   # local x inside right panel canvas (0 = inner/left edge)
-
-# Fuel & CLT vertical scale extents (y-pixel range)
-_SUB_TOP, _SUB_BOT = 245, 415
-
-
-def _ldx(y: float) -> int:
-    """Inner-edge x of left panel at screen y (top=GW, bottom=GW-TAPER)."""
-    return round(GW - TAPER * (y / SH))
-
-
-def _rdx(y: float) -> int:
-    """Inner-edge local-x of right panel at y (top=0, bottom=TAPER)."""
-    return round(TAPER * (y / SH))
-
-
-def _smooth(interp: Dict, key: str, target: float, rate: float = 0.18) -> float:
-    v = interp.get(key, target)
-    v += (target - v) * rate
-    interp[key] = v
-    return v
-
-
-def _txt(canvas, text: str, x: int, y: int, scale: float, color,
-         thickness: int = 1) -> None:
-    cv2.putText(canvas, text, (x, y),
-                cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness, cv2.LINE_AA)
+# Pairing overlay button hit regions (x1, y1, x2, y2) — used by main.py too
+PAIRING_ACCEPT_RECT = (230, 285, 390, 335)
+PAIRING_REJECT_RECT = (410, 285, 570, 335)
 
 
 class GaugeRenderer:
-    """BMW iDrive 8 cluster-map style renderer."""
+    """
+    Layer-based SVG dashboard renderer.
+    Layer order: background → media player → gauge panels → fills → warnings.
+    """
 
-    def __init__(self, style: dict, gauges, width: int = 800, height: int = 480):
-        self._precompute()
+    def __init__(self, style: dict, gauges: dict, width: int = 800, height: int = 480):
+        self._s = style
+        self._g = gauges
+        self._w = width
+        self._h = height
+        self._bg = self._init_background()
+        self._panels = {
+            key: self._init_panel(key)
+            for key in ('left_panel', 'right_panel')
+            if key in self._g.get('layers', {})
+        }
+        self._fills = self._init_fill_svgs()
+        self._pairing_start: float = 0.0
 
-    # ── One-time pre-computation ─────────────────────────────────────────────
-    def _precompute(self) -> None:
-        H, W = SH, SW
+    # ------------------------------------------------------------------ init
 
-        # Left panel gradient alpha mask (H × GW × 1, float32)
-        # Outer (left screen edge) = opaque, inner (diagonal) = transparent
-        x_l = np.linspace(1.0, 0.0, GW, dtype=np.float32)
-        a_l = 0.93 * np.power(x_l, 0.52) + 0.04
-        poly_l = np.array([[0, 0], [GW, 0], [_ldx(H), H], [0, H]], np.int32)
-        mask_l = np.zeros((H, GW), np.float32)
-        cv2.fillPoly(mask_l, [poly_l], 1.0)
-        self._al = (np.outer(np.ones(H, np.float32), a_l) * mask_l)[:, :, np.newaxis]
+    def _init_background(self) -> np.ndarray:
+        import cairosvg
+        cfg = self._g['layers']['background']
+        png_bytes = cairosvg.svg2png(url=cfg['path'],
+                                     output_width=self._w,
+                                     output_height=self._h)
+        arr = cv2.imdecode(np.frombuffer(png_bytes, np.uint8), cv2.IMREAD_COLOR)
+        if arr is None:
+            raise RuntimeError(f"Failed to decode background SVG: {cfg['path']}")
+        return arr
 
-        # Right panel gradient alpha mask (mirrored)
-        a_r = a_l[::-1]   # inner (left of canvas) = transparent, outer = opaque
-        poly_r = np.array([[0, 0], [GW, 0], [GW, H], [_rdx(H), H]], np.int32)
-        mask_r = np.zeros((H, GW), np.float32)
-        cv2.fillPoly(mask_r, [poly_r], 1.0)
-        self._ar = (np.outer(np.ones(H, np.float32), a_r) * mask_r)[:, :, np.newaxis]
+    def _init_panel(self, key: str) -> dict:
+        """Pre-render a gauge panel SVG as a full-screen RGBA layer."""
+        import cairosvg
+        cfg = self._g['layers'][key]
+        nw, nh = cfg['native_width'], cfg['native_height']
+        ax, aw = cfg['anchor_x'], cfg['anchor_width']
+        scale = min(aw / nw, self._h / nh)
+        rw = int(nw * scale)
+        rh = int(nh * scale)
+        ox = ax + (aw - rw) // 2   # center within allocated width
+        oy = (self._h - rh) // 2   # center vertically
+        png_bytes = cairosvg.svg2png(url=cfg['path'],
+                                     output_width=rw,
+                                     output_height=rh)
+        img = cv2.imdecode(np.frombuffer(png_bytes, np.uint8), cv2.IMREAD_UNCHANGED)
+        if img is None:
+            raise RuntimeError(f"Failed to decode panel SVG: {cfg['path']}")
+        if img.shape[2] == 3:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
+        layer = np.zeros((self._h, self._w, 4), dtype=np.uint8)
+        y2 = min(oy + rh, self._h)
+        x2 = min(ox + rw, self._w)
+        layer[oy:y2, ox:x2] = img[:y2 - oy, :x2 - ox]
+        return {'layer': layer, 'scale': scale, 'ox': ox, 'oy': oy}
 
-        # Pre-computed gradient fill bar — left (cyan, grows left→right)
-        bl = max(_ldx(H) - 16, 1)
-        t  = np.linspace(0.0, 1.0, bl, dtype=np.float32)
-        bar_l = np.zeros((4, bl, 3), np.uint8)
-        bar_l[:, :, 0] = np.clip(110 + 135 * t, 0, 255).astype(np.uint8)  # B
-        bar_l[:, :, 1] = np.clip( 55 + 151 * t, 0, 255).astype(np.uint8)  # G
-        bar_l[:, :, 2] = np.clip( 10 + 235 * t, 0, 255).astype(np.uint8)  # R
-        self._bar_l  = bar_l
-        self._bar_lw = bl
-        self._bar_lx = 8   # bar x-start
+    def _init_fill_svgs(self) -> dict:
+        import cairosvg
+        fills = {}
+        for name, cfg in self._g.get('fill_svgs', {}).items():
+            path = cfg['path']
+            root = ET.parse(path).getroot()
+            svg_w = int(root.get('width'))
+            svg_h = int(root.get('height'))
+            panel_key = cfg.get('panel', 'left_panel')
+            p = self._panels.get(panel_key, {'scale': 1.0, 'ox': 0, 'oy': 0})
+            scale = p['scale']
+            ox, oy = p['ox'], p['oy']
+            sw = max(1, int(svg_w * scale))
+            sh = max(1, int(svg_h * scale))
+            png_bytes = cairosvg.svg2png(url=path, output_width=sw, output_height=sh)
+            img = cv2.imdecode(np.frombuffer(png_bytes, np.uint8), cv2.IMREAD_UNCHANGED)
+            # anchor_x, anchor_y = BOTTOM-LEFT in panel SVG coordinates
+            sx = int(cfg['anchor_x'] * scale + ox)
+            sy = int((cfg['anchor_y'] - svg_h) * scale + oy)  # top-left
+            fills[name] = {
+                'img': img, 'sx': sx, 'sy': sy, 'sw': sw, 'sh': sh,
+                'opacity': cfg.get('opacity', 1.0),
+            }
+        return fills
 
-        # Pre-computed gradient fill bar — right (red, grows right→left)
-        inner_r = _rdx(H) + 8
-        br = max((GW - 8) - inner_r, 1)
-        t  = np.linspace(0.0, 1.0, br, dtype=np.float32)   # 0=inner, 1=outer
-        bar_r = np.zeros((4, br, 3), np.uint8)
-        bar_r[:, :, 0] = np.clip(  3 +  45 * t, 0, 255).astype(np.uint8)  # B
-        bar_r[:, :, 1] = np.clip(  3 +  45 * t, 0, 255).astype(np.uint8)  # G
-        bar_r[:, :, 2] = np.clip( 60 + 181 * t, 0, 255).astype(np.uint8)  # R
-        self._bar_r  = bar_r
-        self._bar_rw = br
-        self._bar_rx0 = W - GW + inner_r   # screen x: inner end of right bar
-        self._bar_rx1 = W - 8              # screen x: outer end of right bar
+    # ---------------------------------------------------- composite helpers
 
-    # ── Main entry ────────────────────────────────────────────────────────────
-    def render_frame(self, canvas: np.ndarray, snap: VehicleState,
-                     interp: Dict, page: int) -> None:
-        canvas[:] = (14, 12, 10)   # background
+    def _composite_rgba(self, canvas: np.ndarray, layer: np.ndarray) -> None:
+        """Alpha-composite a full-screen RGBA layer onto a BGR canvas in-place."""
+        alpha = layer[:, :, 3:4].astype(np.float32) / 255.0
+        canvas[:] = np.clip(
+            canvas.astype(np.float32) * (1.0 - alpha) +
+            layer[:, :, :3].astype(np.float32) * alpha,
+            0, 255
+        ).astype(np.uint8)
 
-        speed = _smooth(interp, 'spd', snap.speed_kph, 0.15)
-        rpm   = _smooth(interp, 'rpm', snap.rpm,       0.20)
-        fuel  = _smooth(interp, 'fue', snap.fuel_pct,  0.04)
-        clt   = _smooth(interp, 'clt', snap.clt_c,     0.04)
-
-        if page == 0:
-            self._center_p0(canvas, snap, speed, clt, fuel)
+    def _draw_fill_svg(self, canvas: np.ndarray, name: str, pct: float) -> None:
+        if name not in self._fills:
+            return
+        pct = max(0.0, min(1.0, pct))
+        if pct <= 0:
+            return
+        f = self._fills[name]
+        img, sx, sy, sw, sh = f['img'], f['sx'], f['sy'], f['sw'], f['sh']
+        rows_show = max(1, int(sh * pct))
+        y_clip = sh - rows_show
+        dst_y1 = sy + y_clip
+        dst_y2 = sy + sh
+        dst_x1, dst_x2 = sx, sx + sw
+        ch, cw = canvas.shape[:2]
+        src_y1 = y_clip + max(0, -dst_y1)
+        src_x1 = max(0, -dst_x1)
+        dst_y1 = max(0, dst_y1);  dst_y2 = min(dst_y2, ch)
+        dst_x1 = max(0, dst_x1);  dst_x2 = min(dst_x2, cw)
+        src_y2 = src_y1 + (dst_y2 - dst_y1)
+        src_x2 = src_x1 + (dst_x2 - dst_x1)
+        if dst_y1 >= dst_y2 or dst_x1 >= dst_x2:
+            return
+        src = img[src_y1:src_y2, src_x1:src_x2]
+        dst = canvas[dst_y1:dst_y2, dst_x1:dst_x2]
+        opacity = f['opacity']
+        if img.shape[2] == 4:
+            alpha = src[:, :, 3:4].astype(np.float32) / 255.0 * opacity
+            canvas[dst_y1:dst_y2, dst_x1:dst_x2] = (
+                dst * (1.0 - alpha) + src[:, :, :3] * alpha
+            ).astype(np.uint8)
         else:
-            self._center_p1(canvas, snap)
+            canvas[dst_y1:dst_y2, dst_x1:dst_x2] = src[:, :, :3]
 
-        self._left_panel(canvas, speed, fuel)
-        self._right_panel(canvas, rpm, clt)
-        self._bottom_bar(canvas, snap)
+    # --------------------------------------------------------- text helpers
 
-        if snap.bt_pairing_pending:
-            self._pairing_dialog(canvas, snap)
+    def _put_centered_text(self, canvas: np.ndarray, text: str,
+                           cx: int, cy: int, color: list,
+                           font_scale: float = 1.0,
+                           thickness: int = 1) -> None:
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        (tw, th), _ = cv2.getTextSize(text, font, font_scale, thickness)
+        cv2.putText(canvas, text,
+                    (cx - tw // 2, cy + th // 2),
+                    font, font_scale, tuple(color), thickness, cv2.LINE_AA)
 
-    # ── Left panel ───────────────────────────────────────────────────────────
-    def _left_panel(self, canvas: np.ndarray,
-                    speed: float, fuel: float) -> None:
-        # Gradient background blend
-        reg = canvas[:, :GW].astype(np.float32)
-        canvas[:, :GW] = np.clip(
-            _BG * self._al + reg * (1 - self._al), 0, 255
-        ).astype(np.uint8)
+    def _panel_pt(self, panel_key: str, svg_x: float, svg_y: float) -> tuple[int, int]:
+        """Convert panel-local SVG coordinates to screen pixels."""
+        p = self._panels[panel_key]
+        return (int(svg_x * p['scale'] + p['ox']),
+                int(svg_y * p['scale'] + p['oy']))
 
-        frac = max(0.0, min(1.0, speed / SPEED_MAX))
+    # ---------------------------------------------------------- fill drawing
 
-        # ── Speed tick marks & labels ──
-        for lvl, maj in _SPEED_LVLS:
-            lf  = lvl / SPEED_MAX
-            y   = int(TOP_PAD + TICK_H * (1 - lf))
-            dx  = _ldx(y)
-            act = lvl > 0 and lvl <= speed
-            tl  = 22 if maj else 11
-            clr = _CYAN if act else _DIM
-            cv2.line(canvas, (dx, y), (dx - tl, y),
-                     clr, 2 if maj else 1, cv2.LINE_AA)
-            if lvl > 0:
-                lbl = str(lvl)
-                fs  = 0.38 if maj else 0.28
-                tw  = cv2.getTextSize(lbl, cv2.FONT_HERSHEY_SIMPLEX, fs, 1)[0][0]
-                _txt(canvas, lbl, dx - tl - 5 - tw, y + 5, fs, clr)
+    def _draw_all_fills(self, canvas: np.ndarray, state) -> None:
+        for name, cfg in self._g.get('fill_svgs', {}).items():
+            field = cfg.get('state_field')
+            val = getattr(state, field, None) if field else None
+            if val is None:
+                continue
+            mn, mx = cfg['min_val'], cfg['max_val']
+            pct = max(0.0, min(1.0, (val - mn) / (mx - mn)))
+            self._draw_fill_svg(canvas, name, pct)
 
-        # "0" at bottom
-        y0  = int(TOP_PAD + TICK_H)
-        dx0 = _ldx(y0)
-        tw0 = cv2.getTextSize('0', cv2.FONT_HERSHEY_SIMPLEX, 0.28, 1)[0][0]
-        _txt(canvas, '0', dx0 - 22 - 5 - tw0, y0 + 5, 0.28,
-             _CYAN if speed < 3 else _DIM)
+    def _draw_speed_text(self, canvas: np.ndarray, state) -> None:
+        cfg = self._g['layers'].get('left_panel', {})
+        dp = cfg.get('speed_display')
+        if not dp or 'left_panel' not in self._panels:
+            return
+        cx, cy = self._panel_pt('left_panel', dp[0], dp[1])
+        gps_fix = getattr(state, 'gps_fix', True)
+        speed_str = f"{int(state.speed_kph)}" if gps_fix else "---"
+        color = self._s['value_color'] if gps_fix else self._s['label_color']
+        self._put_centered_text(canvas, speed_str, cx, cy, color,
+                                font_scale=1.0, thickness=2)
 
-        # ── Fuel sub-scale (vertical, inside panel) ──
-        fp = max(0.0, min(1.0, fuel))
-        sh  = _SUB_BOT - _SUB_TOP
-        fy_ind = int(_SUB_BOT - fp * sh)
+    # ------------------------------------------------------ public renderers
 
-        # Track line
-        cv2.line(canvas,
-                 (_FUEL_SUB_X - 3, _SUB_TOP),
-                 (_FUEL_SUB_X - 3, _SUB_BOT), _DIM, 1)
+    def draw_readout(self, canvas: np.ndarray, label: str, value_str: str,
+                     unit: str, pos: list, font_scale: float) -> None:
+        cx, cy = pos[0], pos[1]  # screen pixel coordinates
+        spacing = int(font_scale * 15) + 12
+        self._put_centered_text(canvas, label, cx, cy - spacing,
+                                self._s['label_color'], font_scale=0.4)
+        self._put_centered_text(canvas, value_str, cx, cy,
+                                self._s['value_color'], font_scale=font_scale,
+                                thickness=2)
+        if unit:
+            self._put_centered_text(canvas, unit, cx, cy + spacing,
+                                    self._s['label_color'], font_scale=0.35)
 
-        # Fill
-        if fp > 0.01:
-            fc = (0, 55, 255) if fp < 0.15 else (0, 150, 255) if fp < 0.25 else _CYAN
-            cv2.rectangle(canvas,
-                          (_FUEL_SUB_X - 4, fy_ind),
-                          (_FUEL_SUB_X - 2, _SUB_BOT), fc, -1)
-
-        # Tick marks & labels
-        for fval, flbl in _FUEL_MARKS:
-            fy  = int(_SUB_BOT - fval * sh)
-            act_f = fp >= fval - 0.02
-            fc2  = _CYAN if act_f else _DIM
-            cv2.line(canvas, (_FUEL_SUB_X - 3, fy),
-                     (_FUEL_SUB_X + 10, fy), fc2, 1, cv2.LINE_AA)
-            _txt(canvas, flbl, _FUEL_SUB_X + 13, fy + 4, 0.28, fc2)
-
-        # Indicator dot
-        dot_c = (0, 55, 255) if fp < 0.15 else _CYAN
-        cv2.circle(canvas, (_FUEL_SUB_X - 3, fy_ind), 4, dot_c, -1, cv2.LINE_AA)
-        _txt(canvas, 'FUEL', _FUEL_SUB_X - 14, _SUB_TOP - 10, 0.28, _GRAY)
-
-        # ── Speed fill bar (horizontal, near bottom) ──
-        bar_y  = SH - BOT_PAD + 22
-        bar_x0 = self._bar_lx
-        bar_x1 = _ldx(SH) - 8
-        bar_w  = bar_x1 - bar_x0
-        fill_w = max(0, int(bar_w * frac))
-
-        cv2.rectangle(canvas, (bar_x0, bar_y), (bar_x1, bar_y + 4), (22, 27, 36), -1)
-        if fill_w > 0 and self._bar_lw > 0:
-            sl = min(fill_w, self._bar_lw)
-            canvas[bar_y:bar_y + 4, bar_x0:bar_x0 + sl] = self._bar_l[:, :sl]
-            gx = bar_x0 + sl
-            if gx < bar_x1:
-                canvas[bar_y - 1:bar_y + 5, gx - 2:gx] = [215, 245, 255]
-
-        # ── Header & large speed value ──
-        _txt(canvas, 'km/h', 12, 26, 0.38, _GRAY)
-        _txt(canvas, str(int(round(speed))), 10, 98, 2.1, _CYAN, 3)
-
-    # ── Right panel ──────────────────────────────────────────────────────────
-    def _right_panel(self, canvas: np.ndarray,
-                     rpm: float, clt: float) -> None:
-        reg = canvas[:, SW - GW:SW].astype(np.float32)
-        canvas[:, SW - GW:SW] = np.clip(
-            _BG * self._ar + reg * (1 - self._ar), 0, 255
-        ).astype(np.uint8)
-
-        frac    = max(0.0, min(1.0, rpm / RPM_MAX))
-        redline = rpm >= 6000
-
-        # ── RPM tick marks & labels ──
-        for lvl, lbl in _RPM_LVLS:
-            lf  = lvl / RPM_MAX
-            y   = int(TOP_PAD + TICK_H * (1 - lf))
-            sx  = SW - GW + _rdx(y)
-            act = lvl <= rpm
-            ir  = lvl >= 6000
-            clr = (_HOT if ir else _RED) if act else _DIM
-            cv2.line(canvas, (sx, y), (sx + 22, y), clr, 2, cv2.LINE_AA)
-            _txt(canvas, lbl, sx + 26, y + 5, 0.38, clr)
-
-        # "READY" at bottom
-        yr  = int(TOP_PAD + TICK_H)
-        sxr = SW - GW + _rdx(yr)
-        _txt(canvas, 'READY', sxr + 26, yr + 5, 0.28,
-             _RED if rpm < 200 else _DIM)
-
-        # ── Coolant temp sub-scale (vertical, inside right panel) ──
-        clt_norm = (max(CLT_MIN, min(CLT_MAX, clt)) - CLT_MIN) / (CLT_MAX - CLT_MIN)
-        sh = _SUB_BOT - _SUB_TOP
-        cy_ind   = int(_SUB_BOT - clt_norm * sh)
-        clt_hot  = clt > 105.0
-        clt_warn = clt > 118.0
-
-        # Track
-        tx = SW - GW + _CLT_SUB_X
-        cv2.line(canvas, (tx, _SUB_TOP), (tx, _SUB_BOT), _DIM, 1)
-
-        # Fill
-        if clt_norm > 0.01:
-            tc = _AMBER if clt_warn else _RED if clt_hot else _GRAY
-            cv2.rectangle(canvas, (tx - 1, cy_ind), (tx + 1, _SUB_BOT), tc, -1)
-
-        # Tick marks
-        for cval, clbl in _CLT_MARKS:
-            cn  = (cval - CLT_MIN) / (CLT_MAX - CLT_MIN)
-            cy  = int(_SUB_BOT - cn * sh)
-            act_c = clt >= cval - 1
-            cc   = (_AMBER if cval >= 150 else _RED if cval >= 100 else _GRAY) \
-                   if act_c else _DIM
-            cv2.line(canvas, (tx - 12, cy), (tx, cy), cc, 1, cv2.LINE_AA)
-            tw = cv2.getTextSize(clbl, cv2.FONT_HERSHEY_SIMPLEX, 0.28, 1)[0][0]
-            _txt(canvas, clbl, tx - 14 - tw, cy + 4, 0.28, cc)
-
-        dot_c = _AMBER if clt_warn else _RED if clt_hot else _GRAY
-        cv2.circle(canvas, (tx, cy_ind), 4, dot_c, -1, cv2.LINE_AA)
-        _txt(canvas, 'CLT', tx - 18, _SUB_TOP - 10, 0.28, _GRAY)
-
-        # ── RPM fill bar (fills from outer/right edge leftward) ──
-        bar_y  = SH - BOT_PAD + 22
-        fill_w = max(0, int(self._bar_rw * frac))
-        cv2.rectangle(canvas,
-                      (self._bar_rx0, bar_y),
-                      (self._bar_rx1, bar_y + 4), (22, 27, 36), -1)
-        if fill_w > 0 and self._bar_rw > 0:
-            sl = min(fill_w, self._bar_rw)
-            sx0 = self._bar_rx1 - sl
-            canvas[bar_y:bar_y + 4, sx0:self._bar_rx1] = \
-                self._bar_r[:, self._bar_rw - sl:]
-            if sx0 > self._bar_rx0:
-                canvas[bar_y - 1:bar_y + 5, sx0:sx0 + 2] = \
-                    [180, 180, 255] if redline else [210, 190, 210]
-
-        # ── Header & large RPM value ──
-        _txt(canvas, '1/min x1000', SW - 122, 26, 0.30, _GRAY)
-        clr_v   = _HOT if redline else _RED
-        rpm_txt = f'{rpm / 1000:.1f}'
-        tw      = cv2.getTextSize(rpm_txt, cv2.FONT_HERSHEY_SIMPLEX, 1.9, 3)[0][0]
-        _txt(canvas, rpm_txt, SW - tw - 12, 98, 1.9, clr_v, 3)
-        _txt(canvas, 'rpm', SW - 50, 118, 0.32, _GRAY)
-
-    # ── Center page 0 ─────────────────────────────────────────────────────────
-    def _center_p0(self, canvas: np.ndarray, snap: VehicleState,
-                   speed: float, clt: float, fuel: float) -> None:
-        CX = 200   # left edge of center zone
-
-        # ─── Row 1: AFR  /  MAP  /  BAT  ───────────────────────────────────
-        afr     = snap.afr
-        afr_ok  = 13.5 <= afr <= 15.5
-        afr_hot = afr < 12.5 or afr > 16.5
-        afr_clr = _AMBER if afr_hot else _CYAN if afr_ok else _RED
-
-        _txt(canvas, 'AFR', CX + 20, 38, 0.40, _GRAY)
-        _txt(canvas, f'{afr:.1f}', CX + 10, 88, 1.45, afr_clr, 2)
-        _txt(canvas, 'target 14.7', CX + 10, 105, 0.28, _DIM)
-
-        _txt(canvas, 'MAP', CX + 148, 38, 0.40, _GRAY)
-        map_c = _AMBER if snap.map_kpa > 150 else _WHITE
-        _txt(canvas, f'{snap.map_kpa:.0f}', CX + 140, 80, 1.10, map_c, 2)
-        _txt(canvas, 'kPa', CX + 152, 96, 0.30, _GRAY)
-
-        _txt(canvas, 'BAT', CX + 272, 38, 0.40, _GRAY)
-        bat_c = _AMBER if snap.batt_v < 11.5 else _WHITE
-        _txt(canvas, f'{snap.batt_v:.1f}', CX + 260, 80, 1.10, bat_c, 2)
-        _txt(canvas, 'V', CX + 278, 96, 0.30, _GRAY)
-
-        # ─── Divider ────────────────────────────────────────────────────────
-        cv2.line(canvas, (CX + 8, 118), (CX + 392, 118), _DIM, 1)
-
-        # ─── Coolant bar ────────────────────────────────────────────────────
-        _txt(canvas, 'COOLANT', CX + 10, 136, 0.32, _GRAY)
-        BX, BY, BW, BH = CX + 10, 144, 378, 7
-        cv2.rectangle(canvas, (BX, BY), (BX + BW, BY + BH), (28, 33, 44), -1)
-        clt_f = (max(CLT_MIN, min(CLT_MAX, clt)) - CLT_MIN) / (CLT_MAX - CLT_MIN)
-        clt_fill = int(BW * clt_f)
-        if clt_fill > 0:
-            t = clt_f
-            b = int(190 * (1 - t)); g = int(40 * (1 - t)); r = int(40 + 210 * t)
-            cv2.rectangle(canvas, (BX, BY), (BX + clt_fill, BY + BH), (b, g, r), -1)
-        # Optimal zone bracket (80–105 °C)
-        ok0 = int(BX + BW * (80 - CLT_MIN) / (CLT_MAX - CLT_MIN))
-        ok1 = int(BX + BW * (105 - CLT_MIN) / (CLT_MAX - CLT_MIN))
-        cv2.rectangle(canvas, (ok0, BY - 2), (ok1, BY + BH + 2), _CYAN, 1)
-
-        clt_c = _AMBER if clt > 105 else _GRAY
-        _txt(canvas, f'{clt:.0f} °C', CX + 10, 175, 0.52, clt_c)
-        _txt(canvas, '40', BX - 2, 188, 0.25, _DIM)
-        _txt(canvas, '160', BX + BW - 18, 188, 0.25, _DIM)
-
-        # ─── Divider ────────────────────────────────────────────────────────
-        cv2.line(canvas, (CX + 8, 200), (CX + 392, 200), _DIM, 1)
-
-        # ─── Row 2: TPS  /  IAT  /  IGN  /  GPS ────────────────────────────
-        def metric(label, value, color, lx, ly):
-            _txt(canvas, label, CX + lx, ly - 15, 0.34, _GRAY)
-            _txt(canvas, value, CX + lx, ly,      0.65, color, 2)
-
-        metric('TPS', f'{snap.tps_pct:.0f}%', _WHITE, 10, 248)
-        iat_c = _AMBER if snap.iat_c > 50 else _GRAY
-        metric('IAT', f'{snap.iat_c:.0f}°C',  iat_c,  105, 248)
-        metric('IGN', f'{snap.ign_advance:.1f}°', _WHITE, 210, 248)
-        gps_v = f'{speed:.0f}' if snap.gps_fix else '--'
-        metric('GPS', gps_v + ' kmh', _CYAN if snap.gps_fix else _DIM, 300, 248)
-
-        # ─── Divider ────────────────────────────────────────────────────────
-        cv2.line(canvas, (CX + 8, 268), (CX + 392, 268), _DIM, 1)
-
-        # ─── Bluetooth media ────────────────────────────────────────────────
-        if snap.bt_connected:
-            if snap.bt_playing and snap.bt_title:
-                _txt(canvas, snap.bt_title[:30],  CX + 12, 298, 0.42, _WHITE)
-                _txt(canvas, snap.bt_artist[:30], CX + 12, 320, 0.37, _GRAY)
+    def draw_center_panel(self, canvas: np.ndarray, state, page: int = 0) -> None:
+        if page != 1:
+            return
+        for rd in self._g['center_panel']['readouts']:
+            field = rd['state_field']
+            raw_val = getattr(state, field, None)
+            if raw_val is None or (field in ('odo_km', 'trip_km')
+                                   and not getattr(state, 'gps_fix', True)):
+                value_str = 'NO GPS'
             else:
-                _txt(canvas, 'BT CONNECTED', CX + 12, 302, 0.42, _GRAY)
-        else:
-            _txt(canvas, 'BLUETOOTH OFF', CX + 12, 302, 0.40, _DIM)
+                value_str = rd['format'].format(raw_val)
+            self.draw_readout(canvas, rd['label'], value_str, rd['unit'],
+                              rd['pos'], rd['font_scale'])
 
-        # Media control buttons
-        bt_c = _GRAY if snap.bt_connected else _DIM
-        _txt(canvas, '|<', CX + 126, 350, 0.58, bt_c)
-        play_lbl = '||' if snap.bt_playing else ' >'
-        _txt(canvas, play_lbl, CX + 188, 350, 0.68, _WHITE if snap.bt_connected else _DIM, 2)
-        _txt(canvas, '>|', CX + 254, 350, 0.58, bt_c)
+    def draw_media_player(self, canvas: np.ndarray, state) -> None:
+        """Render Bluetooth media player in center zone x=200..600."""
+        colors = self._s.get("colors", {})
+        amber = tuple(colors.get("amber",
+                      self._s.get("warning_amber", [43, 179, 235])))
+        white = tuple(colors.get("white",
+                      self._s.get("value_color", [255, 255, 255])))
+        gray = tuple(colors.get("gray",
+                     self._s.get("label_color", [170, 170, 170])))
 
-        # ─── Divider ────────────────────────────────────────────────────────
-        cv2.line(canvas, (CX + 8, 370), (CX + 392, 370), _DIM, 1)
+        if not state.bt_connected:
+            self._draw_no_bt(canvas, gray, amber)
+            return
 
-        # ─── ODO / TRIP ─────────────────────────────────────────────────────
-        _txt(canvas, f'ODO  {snap.odo_km:.1f} km',  CX + 12, 398, 0.38, _GRAY)
-        _txt(canvas, f'TRIP {snap.trip_km:.1f} km', CX + 200, 398, 0.38, _GRAY)
+        self._put_centered_text(canvas, "MEDIA", 400, 24, list(amber), font_scale=0.5)
 
-    # ── Center page 1 (diagnostics) ──────────────────────────────────────────
-    def _center_p1(self, canvas: np.ndarray, snap: VehicleState) -> None:
-        CX = 200
-        _txt(canvas, 'DIAGNOSTICS', CX + 118, 28, 0.46, _GRAY)
-        cv2.line(canvas, (CX + 8, 38), (CX + 392, 38), _DIM, 1)
+        art_x1, art_y1, art_x2, art_y2 = 260, 40, 540, 320
+        cv2.rectangle(canvas, (art_x1, art_y1), (art_x2, art_y2), (40, 40, 40), -1)
+        cv2.rectangle(canvas, (art_x1, art_y1), (art_x2, art_y2), amber, 1)
+        self._put_centered_text(canvas, "( music )", 400, 185, list(amber), font_scale=0.7)
 
-        cells = [
-            ('RPM',  f'{snap.rpm:.0f}',            _RED,   10,  95),
-            ('SPD',  f'{snap.speed_kph:.0f} km/h', _CYAN,  10, 175),
-            ('CLT',  f'{snap.clt_c:.1f} C',        _WHITE if snap.clt_c <= 105 else _AMBER, 210, 95),
-            ('IAT',  f'{snap.iat_c:.1f} C',        _WHITE, 210, 175),
-            ('MAP',  f'{snap.map_kpa:.0f} kPa',    _WHITE,  10, 255),
-            ('AFR',  f'{snap.afr:.2f}',            _CYAN,  210, 255),
-            ('TPS',  f'{snap.tps_pct:.1f} %',      _WHITE,  10, 335),
-            ('IGN',  f'{snap.ign_advance:.1f} deg',_WHITE, 210, 335),
-            ('BAT',  f'{snap.batt_v:.2f} V',
-             _WHITE if snap.batt_v > 11.5 else _AMBER, 10, 415),
-            ('GPS',  f'{snap.speed_kph if snap.gps_fix else 0.0:.0f} km/h',
-             _CYAN if snap.gps_fix else _DIM, 210, 415),
-        ]
-        for label, value, color, lx, ly in cells:
-            _txt(canvas, label, CX + lx, ly - 18, 0.34, _GRAY)
-            _txt(canvas, value, CX + lx, ly,      0.68, color, 2)
+        title = (state.bt_title or "Unknown")[:28]
+        self._put_centered_text(canvas, title, 400, 345, list(white), font_scale=0.65)
 
-    # ── Bottom status bar ─────────────────────────────────────────────────────
-    def _bottom_bar(self, canvas: np.ndarray, snap: VehicleState) -> None:
-        BAR_Y = SH - 40
-        cv2.rectangle(canvas, (0, BAR_Y), (SW, SH), (10, 10, 18), -1)
-        cv2.line(canvas, (0, BAR_Y), (SW, BAR_Y), _DIM, 1)
+        artist = (state.bt_artist or "")[:28]
+        if artist:
+            self._put_centered_text(canvas, artist, 400, 370, list(gray), font_scale=0.55)
 
-        t  = time.localtime()
-        h12 = t.tm_hour % 12 or 12
-        ampm = 'pm' if t.tm_hour >= 12 else 'am'
-        _txt(canvas, f'{h12}:{t.tm_min:02d} {ampm}', 208, SH - 12, 0.42, _GRAY)
+        cv2.line(canvas, (220, 390), (580, 390), amber, 1)
 
-        # GPS dot
-        cv2.circle(canvas, (352, SH - 20), 5,
-                   _CYAN if snap.gps_fix else _DIM, -1, cv2.LINE_AA)
+        play_label = "||" if state.bt_playing else " >"
+        for label, cx in [("<|", 300), (play_label, 400), ("|>", 500)]:
+            self._put_centered_text(canvas, label, cx, 445, list(amber),
+                                    font_scale=0.9, thickness=2)
 
-        # BT
-        _txt(canvas, 'BT', 368, SH - 12, 0.36,
-             _CYAN if snap.bt_connected else _DIM)
+    def _draw_no_bt(self, canvas: np.ndarray, gray: tuple, amber: tuple) -> None:
+        self._put_centered_text(canvas, "BLUETOOTH", 400, 220, list(amber), font_scale=0.7)
+        self._put_centered_text(canvas, "Pair your phone", 400, 256, list(gray), font_scale=0.55)
 
-        # ODO
-        _txt(canvas, f'{snap.odo_km:.0f} km', 404, SH - 12, 0.36, _GRAY)
+    def draw_page_dots(self, canvas: np.ndarray, page: int, total: int = 2) -> None:
+        cy = self._h - 10
+        spacing = 16
+        cx0 = self._w // 2 - (total - 1) * spacing // 2
+        for i in range(total):
+            color = tuple(self._s['value_color']) if i == page else (70, 70, 70)
+            cv2.circle(canvas, (cx0 + i * spacing, cy), 4, color, -1, cv2.LINE_AA)
 
-        # Battery
-        bat_c = _AMBER if snap.batt_v < 11.5 else _GRAY
-        _txt(canvas, f'{snap.batt_v:.1f}V', 510, SH - 12, 0.36, bat_c)
+    def draw_warning_icon(self, canvas: np.ndarray, cx: int, cy: int,
+                          label: str, color: list, pulse: float = 1.0) -> None:
+        r = 16
+        brightness = max(0.25, pulse)
+        c = tuple(int(v * brightness) for v in color)
+        pts = np.array([[cx, cy - r], [cx - r, cy + r], [cx + r, cy + r]], np.int32)
+        cv2.fillPoly(canvas, [pts], c)
+        cv2.polylines(canvas, [pts], True, tuple(color), 1, cv2.LINE_AA)
+        cv2.putText(canvas, '!', (cx - 4, cy + r - 3),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                    tuple(self._s['bg_color']), 2, cv2.LINE_AA)
+        self._put_centered_text(canvas, label, cx, cy + r + 12,
+                                color, font_scale=0.35)
 
-        # CLT summary
-        clt_c = _AMBER if snap.clt_c > 105 else _GRAY
-        _txt(canvas, f'{snap.clt_c:.0f}C', 568, SH - 12, 0.36, clt_c)
+    def draw_warnings(self, canvas: np.ndarray, state) -> None:
+        warnings = self._collect_warnings(state)
+        if not warnings:
+            return
+        pulse = abs(math.sin(time.monotonic() * 2.5))
+        warn_y = self._h - 45
+        warn_cx = self._w // 2
+        total = len(warnings)
+        for i, (label, color) in enumerate(warnings):
+            offset = (i - (total - 1) / 2) * 70
+            self.draw_warning_icon(canvas, int(warn_cx + offset), warn_y,
+                                   label, color,
+                                   pulse=pulse if i == 0 else 1.0)
 
-    # ── Pairing dialog overlay ────────────────────────────────────────────────
-    def _pairing_dialog(self, canvas: np.ndarray, snap: VehicleState) -> None:
-        ov = canvas.copy()
-        cv2.rectangle(ov, (148, 138), (652, 358), (18, 18, 28), -1)
-        cv2.rectangle(ov, (148, 138), (652, 358), _GRAY, 1)
-        canvas[:] = cv2.addWeighted(ov, 0.93, canvas, 0.07, 0)
+    def _collect_warnings(self, state) -> list:
+        warnings = []
+        if state.clt_c > 99:
+            warnings.append((f"{state.clt_c:.0f}C", self._s['warning_amber']))
+        if state.afr < 11.0:
+            warnings.append(("RICH", self._s['warning_amber']))
+        elif state.afr > 16.5:
+            warnings.append(("LEAN", self._s['warning_red']))
+        return warnings
 
-        _txt(canvas, 'BLUETOOTH PAIRING', 168, 178, 0.52, _WHITE)
-        dev = (snap.bt_pairing_device or 'Unknown')[:34]
-        _txt(canvas, dev, 168, 212, 0.44, _CYAN)
-        if snap.bt_pairing_passkey:
-            _txt(canvas, f'Passkey:  {snap.bt_pairing_passkey:06d}',
-                 168, 248, 0.50, _WHITE)
+    def _draw_pairing_overlay(self, canvas: np.ndarray, state) -> None:
+        """Draw Bluetooth pairing modal on top of current canvas."""
+        # Semi-transparent scrim
+        scrim = np.zeros_like(canvas)
+        cv2.addWeighted(canvas, 0.30, scrim, 0.70, 0, canvas)
 
+        # Card background and border
+        AMBER = (0, 164, 232)   # BGR for #e8a400
+        DARK  = (22, 22, 22)
+        cv2.rectangle(canvas, (210, 130), (590, 350), DARK, -1)
+        cv2.rectangle(canvas, (210, 130), (590, 350), AMBER, 2)
+
+        # Title
+        cv2.putText(canvas, 'BLUETOOTH PAIRING',
+                    (260, 165), cv2.FONT_HERSHEY_SIMPLEX, 0.55, AMBER, 1, cv2.LINE_AA)
+
+        # Device name (truncate to 28 chars)
+        device = state.bt_pairing_device[:28]
+        cv2.putText(canvas, device,
+                    (260, 195), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+
+        # Passkey label
+        cv2.putText(canvas, 'CONFIRM CODE ON YOUR PHONE',
+                    (240, 225), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (100, 100, 100), 1, cv2.LINE_AA)
+
+        # Passkey value — large, spaced
+        passkey_str = f"{state.bt_pairing_passkey:06d}"
+        spaced = '  '.join(passkey_str)
+        cv2.putText(canvas, spaced,
+                    (248, 272), cv2.FONT_HERSHEY_SIMPLEX, 1.1, AMBER, 2, cv2.LINE_AA)
+
+        # ACCEPT button
         ax1, ay1, ax2, ay2 = PAIRING_ACCEPT_RECT
-        cv2.rectangle(canvas, (ax1, ay1), (ax2, ay2), _CYAN, -1)
-        _txt(canvas, 'ACCEPT', ax1 + 36, ay2 - 12, 0.52, (12, 12, 20), 2)
+        cv2.rectangle(canvas, (ax1, ay1), (ax2, ay2), AMBER, -1)
+        cv2.putText(canvas, 'ACCEPT',
+                    (ax1 + 28, ay2 - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 2, cv2.LINE_AA)
 
+        # REJECT button
         rx1, ry1, rx2, ry2 = PAIRING_REJECT_RECT
-        cv2.rectangle(canvas, (rx1, ry1), (rx2, ry2), _DIM, -1)
-        _txt(canvas, 'REJECT', rx1 + 36, ry2 - 12, 0.52, _WHITE, 2)
+        cv2.rectangle(canvas, (rx1, ry1), (rx2, ry2), (50, 50, 50), -1)
+        cv2.rectangle(canvas, (rx1, ry1), (rx2, ry2), (80, 80, 80), 1)
+        cv2.putText(canvas, 'REJECT',
+                    (rx1 + 28, ry2 - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (150, 150, 150), 1, cv2.LINE_AA)
+
+        # Countdown
+        elapsed = time.monotonic() - self._pairing_start
+        remaining = max(0, int(30 - elapsed))
+        cv2.putText(canvas, f'AUTO-DISMISS IN {remaining}s',
+                    (295, 345), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (80, 80, 80), 1, cv2.LINE_AA)
+
+    # --------------------------------------------------------- main render
+
+    def render_frame(self, canvas: np.ndarray, state, interp: dict,
+                     page: int = 0) -> None:
+        # Layer 1: background
+        np.copyto(canvas, self._bg)
+
+        # Layer 2: media player (sits under gauge panels)
+        if page == 0:
+            self.draw_media_player(canvas, state)
+
+        # Layer 3: gauge panels (RGBA, transparent centers let media show through)
+        for panel in self._panels.values():
+            self._composite_rgba(canvas, panel['layer'])
+
+        # Value fills on top of panels
+        self._draw_all_fills(canvas, state)
+
+        # Speed readout
+        self._draw_speed_text(canvas, state)
+
+        # Detail readouts (page 1)
+        self.draw_center_panel(canvas, state, page)
+
+        # Page indicator dots
+        self.draw_page_dots(canvas, page)
+
+        # Warnings always on top
+        self.draw_warnings(canvas, state)
+
+        # Pairing overlay — always on top of everything
+        if state.bt_pairing_pending:
+            if self._pairing_start == 0.0:
+                self._pairing_start = time.monotonic()
+            self._draw_pairing_overlay(canvas, state)
+        else:
+            self._pairing_start = 0.0
