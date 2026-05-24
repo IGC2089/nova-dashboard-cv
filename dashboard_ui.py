@@ -195,9 +195,7 @@ class GaugeRenderer:
             self._put_centered_text(canvas, unit, cx, cy + spacing,
                                     self._s['label_color'], font_scale=0.35)
 
-    def draw_center_panel(self, canvas: np.ndarray, state, page: int = 0) -> None:
-        if page != 1:
-            return
+    def draw_center_panel(self, canvas: np.ndarray, state) -> None:
         for rd in self._g['center_panel']['readouts']:
             field = rd['state_field']
             raw_val = getattr(state, field, None)
@@ -208,53 +206,6 @@ class GaugeRenderer:
                 value_str = rd['format'].format(raw_val)
             self.draw_readout(canvas, rd['label'], value_str, rd['unit'],
                               rd['pos'], rd['font_scale'])
-
-    def draw_media_player(self, canvas: np.ndarray, state) -> None:
-        """Render Bluetooth media player in center zone x=200..600."""
-        colors = self._s.get("colors", {})
-        amber = tuple(colors.get("amber",
-                      self._s.get("warning_amber", [43, 179, 235])))
-        white = tuple(colors.get("white",
-                      self._s.get("value_color", [255, 255, 255])))
-        gray = tuple(colors.get("gray",
-                     self._s.get("label_color", [170, 170, 170])))
-
-        if not state.bt_connected:
-            self._draw_no_bt(canvas, gray, amber)
-            return
-
-        self._put_centered_text(canvas, "MEDIA", 400, 24, list(amber), font_scale=0.5)
-
-        art_x1, art_y1, art_x2, art_y2 = 260, 40, 540, 320
-        cv2.rectangle(canvas, (art_x1, art_y1), (art_x2, art_y2), (40, 40, 40), -1)
-        cv2.rectangle(canvas, (art_x1, art_y1), (art_x2, art_y2), amber, 1)
-        self._put_centered_text(canvas, "( music )", 400, 185, list(amber), font_scale=0.7)
-
-        title = (state.bt_title or "Unknown")[:28]
-        self._put_centered_text(canvas, title, 400, 345, list(white), font_scale=0.65)
-
-        artist = (state.bt_artist or "")[:28]
-        if artist:
-            self._put_centered_text(canvas, artist, 400, 370, list(gray), font_scale=0.55)
-
-        cv2.line(canvas, (220, 390), (580, 390), amber, 1)
-
-        play_label = "||" if state.bt_playing else " >"
-        for label, cx in [("<|", 300), (play_label, 400), ("|>", 500)]:
-            self._put_centered_text(canvas, label, cx, 445, list(amber),
-                                    font_scale=0.9, thickness=2)
-
-    def _draw_no_bt(self, canvas: np.ndarray, gray: tuple, amber: tuple) -> None:
-        self._put_centered_text(canvas, "BLUETOOTH", 400, 220, list(amber), font_scale=0.7)
-        self._put_centered_text(canvas, "Pair your phone", 400, 256, list(gray), font_scale=0.55)
-
-    def draw_page_dots(self, canvas: np.ndarray, page: int, total: int = 2) -> None:
-        cy = self._h - 10
-        spacing = 16
-        cx0 = self._w // 2 - (total - 1) * spacing // 2
-        for i in range(total):
-            color = tuple(self._s['value_color']) if i == page else (70, 70, 70)
-            cv2.circle(canvas, (cx0 + i * spacing, cy), 4, color, -1, cv2.LINE_AA)
 
     def draw_warning_icon(self, canvas: np.ndarray, cx: int, cy: int,
                           label: str, color: list, pulse: float = 1.0) -> None:
@@ -346,16 +297,11 @@ class GaugeRenderer:
 
     # --------------------------------------------------------- main render
 
-    def render_frame(self, canvas: np.ndarray, state, interp: dict,
-                     page: int = 0) -> None:
+    def render_frame(self, canvas: np.ndarray, state, interp: dict = None) -> None:
         # Layer 1: background
         np.copyto(canvas, self._bg)
 
-        # Layer 2: media player (sits under gauge panels)
-        if page == 0:
-            self.draw_media_player(canvas, state)
-
-        # Layer 3: gauge panels (RGBA, transparent centers let media show through)
+        # Layer 2: gauge panels (RGBA)
         for panel in self._panels.values():
             self._composite_rgba(canvas, panel['layer'])
 
@@ -365,11 +311,8 @@ class GaugeRenderer:
         # Speed readout
         self._draw_speed_text(canvas, state)
 
-        # Detail readouts (page 1)
-        self.draw_center_panel(canvas, state, page)
-
-        # Page indicator dots
-        self.draw_page_dots(canvas, page)
+        # ECU readouts in center
+        self.draw_center_panel(canvas, state)
 
         # Warnings always on top
         self.draw_warnings(canvas, state)
