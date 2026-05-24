@@ -47,12 +47,23 @@ class GpsBridge(QObject):
 
     def push(self) -> None:
         pos = self._gps.get_position()
+        # Read live vehicle state written by main.py (~6 Hz)
+        vehicle: dict = {'speed_kph': 0.0, 'rpm': 0.0, 'fuel_pct': 0.5, 'clt_c': 85.0}
+        try:
+            with open('/tmp/nova_vehicle.json') as _vf:
+                vehicle = json.load(_vf)
+        except (OSError, ValueError):
+            pass
         self.position_changed.emit(json.dumps({
-            'lat':     pos.lat,
-            'lon':     pos.lon,
-            'heading': pos.heading,
-            'speed':   pos.speed_kmh,
-            'fix':     pos.fix,
+            'lat':       pos.lat,
+            'lon':       pos.lon,
+            'heading':   pos.heading,
+            'speed':     pos.speed_kmh,
+            'fix':       pos.fix,
+            'speed_kph': vehicle.get('speed_kph', 0.0),
+            'rpm':       vehicle.get('rpm', 0.0),
+            'fuel_pct':  vehicle.get('fuel_pct', 0.5),
+            'clt_c':     vehicle.get('clt_c', 85.0),
         }))
 
     @pyqtSlot()

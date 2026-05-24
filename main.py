@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 import math
+import json
 import logging
 import numpy as np
 import cv2
@@ -130,6 +131,7 @@ def main() -> None:
     log.info("Dashboard started — targeting %d FPS", TARGET_FPS)
 
     snap = VehicleState()
+    _vehicle_frame = 0
     try:
         while running:
             for event in pygame.event.get():
@@ -180,6 +182,20 @@ def main() -> None:
                     swipe_start_x = None
 
             snap = state.snapshot()
+
+            # Write vehicle state for nav overlay every 10 frames (~6 Hz)
+            _vehicle_frame += 1
+            if _vehicle_frame % 10 == 0:
+                try:
+                    with open('/tmp/nova_vehicle.json', 'w') as _vf:
+                        json.dump({
+                            'speed_kph': snap.speed_kph,
+                            'rpm':       snap.rpm,
+                            'fuel_pct':  snap.fuel_pct,
+                            'clt_c':     snap.clt_c,
+                        }, _vf)
+                except OSError:
+                    pass
 
             if '--simulate' in sys.argv:
                 t = time.monotonic()
