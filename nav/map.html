@@ -9,20 +9,17 @@
     html, body { width: 100%; height: 100%; background: #1a1a1a; overflow: hidden; }
     #map { width: 100%; height: 100%; }
 
-    /* Vehicle icon — always pointing up since map rotates to heading-up */
+    /* Vehicle icon */
     #vehicle {
       position: fixed;
       left: 50%;
       top: 66.6%;
       transform: translate(-50%, -50%);
-      width: 0;
-      height: 0;
+      width: 0; height: 0;
       pointer-events: none;
       z-index: 10;
     }
-    #vehicle svg {
-      filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));
-    }
+    #vehicle svg { filter: drop-shadow(0 0 4px rgba(0,0,0,0.8)); }
 
     /* No-fix overlay */
     #no-fix {
@@ -39,45 +36,39 @@
     }
     #no-fix.visible { display: flex; }
 
-    /* Speed badge — hidden; speed is shown in the left gauge */
+    /* Legacy speed badge — hidden (speed lives in gauge canvas) */
     #speed { display: none; }
 
-    /* Home button */
+    /* Home button — inset from left gauge edge */
     #home-btn {
       position: fixed;
-      top: 16px;
-      left: 208px;
-      width: 44px;
-      height: 44px;
-      background: rgba(0,0,0,0.65);
-      border: 1px solid #a2abbb;
+      top: 14px;
+      left: 212px;
+      width: 40px; height: 40px;
+      background: rgba(0,0,0,0.60);
+      border: 1px solid rgba(162,171,187,0.55);
+      border-radius: 50%;
+      color: #a2abbb;
+      font-size: 17px;
+      cursor: pointer;
+      z-index: 25;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Search button — inset from right gauge edge */
+    #search-btn {
+      position: fixed;
+      top: 14px;
+      right: 212px;
+      width: 40px; height: 40px;
+      background: rgba(0,0,0,0.60);
+      border: 1px solid rgba(162,171,187,0.55);
       border-radius: 50%;
       color: #a2abbb;
       font-size: 18px;
       cursor: pointer;
-      z-index: 25;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* Search button */
-    #search-btn {
-      position: fixed;
-      top: 16px;
-      right: 208px;
-      width: 44px;
-      height: 44px;
-      background: rgba(0,0,0,0.65);
-      border: 1px solid #a2abbb;
-      border-radius: 50%;
-      color: #a2abbb;
-      font-size: 20px;
-      cursor: pointer;
       z-index: 15;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: flex; align-items: center; justify-content: center;
     }
 
     /* Search panel + keyboard */
@@ -91,173 +82,133 @@
       align-items: stretch;
     }
     #search-panel.visible { display: flex; }
-
     #search-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      display: flex; align-items: center; gap: 10px;
       padding: 14px;
       border-bottom: 2px solid #EBB32B;
     }
     #search-input {
-      flex: 1;
-      padding: 12px 16px;
+      flex: 1; padding: 12px 16px;
       font-size: 1.2rem;
-      border: 1px solid #555;
-      border-radius: 6px;
-      background: #222;
-      color: #fff;
-      outline: none;
-      caret-color: #EBB32B;
+      border: 1px solid #555; border-radius: 6px;
+      background: #222; color: #fff;
+      outline: none; caret-color: #EBB32B;
     }
     #search-go {
       padding: 12px 22px;
-      background: #EBB32B;
-      color: #000;
-      border: none;
-      border-radius: 6px;
-      font: bold 1.1rem 'Arial', sans-serif;
-      cursor: pointer;
+      background: #EBB32B; color: #000;
+      border: none; border-radius: 6px;
+      font: bold 1.1rem 'Arial', sans-serif; cursor: pointer;
     }
     #search-close {
       padding: 12px 16px;
-      background: none;
-      border: 1px solid #555;
-      color: #aaa;
-      border-radius: 6px;
-      font-size: 1.1rem;
-      cursor: pointer;
+      background: none; border: 1px solid #555; color: #aaa;
+      border-radius: 6px; font-size: 1.1rem; cursor: pointer;
     }
-
-    /* On-screen keyboard */
     #osk {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 6px;
-      padding: 10px 8px;
+      flex: 1; display: flex; flex-direction: column;
+      justify-content: center; gap: 6px; padding: 10px 8px;
     }
-    .osk-row {
-      display: flex;
-      justify-content: center;
-      gap: 5px;
-    }
+    .osk-row { display: flex; justify-content: center; gap: 5px; }
     .osk-key {
-      flex: 1;
-      max-width: 68px;
-      height: 52px;
-      background: #2a2a2a;
-      color: #fff;
-      border: 1px solid #444;
-      border-radius: 6px;
-      font-size: 1.1rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      flex: 1; max-width: 68px; height: 52px;
+      background: #2a2a2a; color: #fff;
+      border: 1px solid #444; border-radius: 6px;
+      font-size: 1.1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
       user-select: none;
     }
     .osk-key:active { background: #EBB32B; color: #000; }
-    .osk-key.wide { max-width: 110px; font-size: 0.9rem; }
+    .osk-key.wide  { max-width: 110px; font-size: 0.9rem; }
     .osk-key.space { max-width: 300px; }
     .osk-key.accent { background: #333; color: #EBB32B; }
 
-    /* Turn banner — offset right of left gauge */
+    /* Turn banner — spans between gauges */
     #turn-banner {
       display: none;
       position: fixed;
       top: 0; left: 200px; right: 200px;
-      background: rgba(0,0,0,0.82);
+      background: rgba(0,0,0,0.84);
       color: #fff;
-      font: bold 1.1rem 'Arial', sans-serif;
-      padding: 12px 16px;
+      font: bold 1rem 'Arial', sans-serif;
+      padding: 10px 14px;
       z-index: 15;
-      align-items: center;
-      gap: 12px;
-      border-bottom: 2px solid #a2abbb;
+      align-items: center; gap: 10px;
+      border-bottom: 2px solid rgba(162,171,187,0.4);
     }
     #turn-banner.visible { display: flex; }
     #turn-instruction { flex: 1; }
-    #turn-distance { color: #a2abbb; white-space: nowrap; font-size: 1.2rem; }
+    #turn-distance { color: #a2abbb; white-space: nowrap; font-size: 1.1rem; }
     #cancel-route {
-      background: none;
-      border: 1px solid #555;
-      color: #aaa;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.85rem;
+      background: none; border: 1px solid #444; color: #888;
+      padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;
     }
 
-    /* ---- BMW cluster gauge panels ---- */
-    #gauge-left, #gauge-right {
-      position: fixed;
-      top: 0;
-      width: 200px;
-      height: 480px;
-      pointer-events: none;
-      z-index: 12;
+    /* BMW gauge canvases — transparent background, drawn via JS */
+    #gauge-left {
+      position: fixed; top: 0; left: 0;
+      width: 200px; height: 480px;
+      pointer-events: none; z-index: 12;
     }
-    #gauge-left  { left: 0; }
-    #gauge-right { right: 0; }
+    #gauge-right {
+      position: fixed; top: 0; right: 0;
+      width: 200px; height: 480px;
+      pointer-events: none; z-index: 12;
+    }
 
     /* Bottom cluster bar */
     #cluster-bottom {
       position: fixed;
       bottom: 0; left: 0; right: 0;
-      height: 48px;
-      background: rgba(10,10,15,0.88);
-      border-top: 1px solid #1e2530;
+      height: 46px;
+      background: rgba(8,10,16,0.90);
+      border-top: 1px solid rgba(162,171,187,0.12);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 24px;
+      padding: 0 20px;
       z-index: 13;
       pointer-events: none;
       font-family: Arial, sans-serif;
     }
-    .cluster-cell {
-      display: flex;
-      align-items: baseline;
-      gap: 5px;
-      min-width: 120px;
-    }
-    .cluster-cell.center { justify-content: center; }
-    .cluster-cell.right  { justify-content: flex-end; }
-    .cluster-val {
-      font-size: 1.3rem;
-      font-weight: bold;
-      color: #ffffff;
-    }
-    .cluster-unit {
-      font-size: 0.75rem;
+    #bottom-clock {
       color: #a2abbb;
-      letter-spacing: 0.05em;
+      font-size: 1.05rem;
+      font-weight: bold;
+      min-width: 72px;
     }
-    #bottom-clock { color: #a2abbb; font-size: 1.1rem; font-weight: bold; }
+    .bbar-cell {
+      display: flex; align-items: baseline; gap: 4px;
+    }
+    .bbar-val {
+      font-size: 1.2rem; font-weight: bold; color: #fff;
+    }
+    .bbar-unit {
+      font-size: 0.72rem; color: #a2abbb; letter-spacing: 0.04em;
+    }
+    #bottom-gps {
+      font-size: 1.2rem;
+      transition: color 0.4s;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
-  <!-- Amber arrow — always pointing up since map rotates to heading-up -->
+  <!-- Vehicle arrow — always up, map rotates under it -->
   <div id="vehicle">
-    <svg width="36" height="48" viewBox="0 0 36 48">
-      <polygon points="18,0 36,48 18,36 0,48" fill="#EBB32B" stroke="#000" stroke-width="1.5"/>
+    <svg width="34" height="46" viewBox="0 0 34 46">
+      <polygon points="17,0 34,46 17,34 0,46" fill="#EBB32B" stroke="#000" stroke-width="1.5"/>
     </svg>
   </div>
 
   <div id="no-fix">NO GPS FIX</div>
-  <div id="speed">-- km/h</div>
+  <div id="speed">--</div>
 
-  <!-- Home button — returns to dashboard workspace -->
   <button id="home-btn" onclick="goHome()">&#8962;</button>
-
-  <!-- Search button (hidden while routing) -->
   <button id="search-btn" onclick="openSearch()">&#9906;</button>
 
-  <!-- Search panel with built-in keyboard -->
+  <!-- Search panel -->
   <div id="search-panel">
     <div id="search-bar">
       <input id="search-input" type="text" placeholder="Type destination…" autocomplete="off" readonly/>
@@ -288,41 +239,295 @@
     <span id="turn-instruction"></span>
     <span id="turn-maneuver" style="display:flex;align-items:center;flex-shrink:0"></span>
     <span id="turn-distance"></span>
-    <span id="turn-eta" style="color:#aaa;font-size:0.95rem;white-space:nowrap"></span>
+    <span id="turn-eta" style="color:#888;font-size:0.9rem;white-space:nowrap"></span>
     <button id="cancel-route" onclick="cancelRoute()">&#x2715; End</button>
   </div>
 
-  <!-- BMW cluster gauges -->
+  <!-- BMW cluster gauge canvases -->
   <canvas id="gauge-left"  width="200" height="480"></canvas>
   <canvas id="gauge-right" width="200" height="480"></canvas>
 
   <!-- Bottom status bar -->
   <div id="cluster-bottom">
-    <div class="cluster-cell">
-      <span id="bottom-clock">--:--</span>
+    <span id="bottom-clock">--:--</span>
+    <div class="bbar-cell">
+      <span style="font-size:14px;margin-right:3px">⛽</span>
+      <span class="bbar-val" id="bottom-fuel">--</span>
+      <span class="bbar-unit">%</span>
     </div>
-    <div class="cluster-cell center">
-      <span class="cluster-val" id="bottom-speed">--</span>
-      <span class="cluster-unit">km/h</span>
-    </div>
-    <div class="cluster-cell right">
-      <span class="cluster-val" id="bottom-temp">--</span>
-      <span class="cluster-unit">°C</span>
+    <span id="bottom-gps" style="color:#3a4555">⬤</span>
+    <div class="bbar-cell">
+      <span class="bbar-val" id="bottom-temp">--</span>
+      <span class="bbar-unit">°C</span>
     </div>
   </div>
 
   <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
   <script>
-    var MAPS_KEY = '{{API_KEY}}';
-    var map;
-    var lastPos = null;
-    var mapReady = false;
-    var gpsChannel = null;
-    var routePolyline = null;
-    var routeSteps = [];
-    var routeEta = null;
+    var MAPS_KEY  = '{{API_KEY}}';
+    var map, lastPos = null, mapReady = false, gpsChannel = null;
+    var routePolyline = null, routeSteps = [], routeEta = null;
 
-    // ------------------------------------------------------------------ map init
+    // ── Gauge geometry ────────────────────────────────────────────────────────
+    var G_W      = 200;   // canvas width
+    var G_H      = 480;   // canvas height
+    var TAPER    = 38;    // how much the inner edge shifts from top → bottom
+    var TOP_PAD  = 44;    // space above tick zone
+    var BOT_PAD  = 44;    // space below tick zone (for fill bar + label)
+    var TICK_H   = G_H - TOP_PAD - BOT_PAD;
+    var SPEED_MAX = 330;
+    var RPM_MAX   = 7000;
+
+    // Left panel: inner edge x at canvas y
+    function leftDiag(y) { return G_W - TAPER * (y / G_H); }
+
+    // Right panel: inner edge x at canvas y (x=0 = screen inner, x=200 = screen outer)
+    function rightDiag(y) { return TAPER * (y / G_H); }
+
+    // ── Speed (left) canvas ───────────────────────────────────────────────────
+    function drawSpeed(speedKph, fuelPct) {
+      var cv  = document.getElementById('gauge-left');
+      var ctx = cv.getContext('2d');
+      var W = G_W, H = G_H;
+
+      ctx.clearRect(0, 0, W, H);
+
+      // 1 ── Trapezoid background with gradient fade toward inner edge
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(W, 0);
+      ctx.lineTo(W - TAPER, H); ctx.lineTo(0, H);
+      ctx.closePath();
+      ctx.clip();
+
+      var bg = ctx.createLinearGradient(0, 0, W, 0);
+      bg.addColorStop(0.00, 'rgba(8,10,16,0.97)');
+      bg.addColorStop(0.42, 'rgba(8,10,16,0.94)');
+      bg.addColorStop(0.68, 'rgba(8,10,16,0.68)');
+      bg.addColorStop(0.84, 'rgba(8,10,16,0.30)');
+      bg.addColorStop(1.00, 'rgba(8,10,16,0.04)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore(); // remove clip — text/ticks drawn on full canvas
+
+      // 2 ── Tick marks along the inner diagonal edge
+      var frac = Math.max(0, Math.min(1, speedKph / SPEED_MAX));
+      var LEVELS = [330, 270, 210, 150, 120, 90, 60, 30];
+
+      LEVELS.forEach(function(lvl) {
+        var lf  = lvl / SPEED_MAX;
+        var y   = TOP_PAD + TICK_H * (1 - lf);
+        var dx  = leftDiag(y);
+        var act = lvl <= speedKph;
+        var maj = (lvl % 90 === 0 || lvl === 120 || lvl === 150);
+
+        ctx.strokeStyle = act ? '#77CEF5' : 'rgba(162,171,187,0.28)';
+        ctx.lineWidth   = maj ? 1.8 : 1.0;
+        ctx.beginPath();
+        ctx.moveTo(dx, y); ctx.lineTo(dx - (maj ? 22 : 11), y);
+        ctx.stroke();
+
+        ctx.font      = maj ? 'bold 12px Arial' : '10px Arial';
+        ctx.fillStyle = act ? '#77CEF5' : 'rgba(162,171,187,0.42)';
+        ctx.textAlign = 'right';
+        ctx.fillText(String(lvl), dx - (maj ? 22 : 11) - 4, y + 4.5);
+      });
+
+      // "0" at bottom of scale
+      var y0  = TOP_PAD + TICK_H;
+      var dx0 = leftDiag(y0);
+      ctx.font      = '10px Arial';
+      ctx.fillStyle = speedKph < 3 ? '#77CEF5' : 'rgba(162,171,187,0.42)';
+      ctx.textAlign = 'right';
+      ctx.fillText('0', dx0 - 22 - 4, y0 + 4.5);
+
+      // 3 ── Horizontal fill bar near bottom
+      var barY  = H - BOT_PAD + 22;
+      var barH  = 4;
+      var barX0 = 8;
+      var barX1 = Math.round(leftDiag(H)) - 8; // max extent = inner edge at bottom
+      var barW  = barX1 - barX0;
+
+      // track (empty)
+      ctx.fillStyle = 'rgba(119,206,245,0.10)';
+      ctx.fillRect(barX0, barY, barW, barH);
+
+      if (frac > 0) {
+        var fillW = Math.round(barW * frac);
+        var gr = ctx.createLinearGradient(barX0, 0, barX0 + barW, 0);
+        gr.addColorStop(0, 'rgba(10,55,110,0.90)');
+        gr.addColorStop(1, '#77CEF5');
+        ctx.fillStyle = gr;
+        ctx.fillRect(barX0, barY, fillW, barH);
+        // bright leading-edge glow
+        ctx.fillStyle = 'rgba(210,245,255,0.90)';
+        ctx.fillRect(barX0 + fillW - 2, barY - 1, 2, barH + 2);
+      }
+
+      // 4 ── "km/h" unit label top-left
+      ctx.font      = '11px Arial';
+      ctx.fillStyle = '#a2abbb';
+      ctx.textAlign = 'left';
+      ctx.fillText('km/h', 12, 26);
+
+      // 5 ── Large speed value
+      ctx.font      = 'bold 64px Arial';
+      ctx.fillStyle = '#77CEF5';
+      ctx.textAlign = 'left';
+      ctx.fillText(Math.round(speedKph).toString(), 10, 96);
+
+      // 6 ── Fuel indicator (icon + mini bar)
+      var fp = Math.max(0, Math.min(1, fuelPct != null ? fuelPct : 0.5));
+      var fuelClr = fp < 0.15 ? '#ff4040' : fp < 0.25 ? '#ffaa00' : '#a2abbb';
+      ctx.font      = '13px Arial';
+      ctx.fillStyle = fuelClr;
+      ctx.textAlign = 'left';
+      ctx.fillText('⛽', 10, 117);   // ⛽
+
+      var fbX = 32, fbY = 107, fbW = 55, fbH = 4;
+      ctx.fillStyle = 'rgba(162,171,187,0.12)';
+      ctx.fillRect(fbX, fbY, fbW, fbH);
+      ctx.fillStyle = fuelClr;
+      ctx.fillRect(fbX, fbY, Math.round(fbW * fp), fbH);
+    }
+
+    // ── RPM (right) canvas ────────────────────────────────────────────────────
+    function drawRpm(rpm) {
+      var cv  = document.getElementById('gauge-right');
+      var ctx = cv.getContext('2d');
+      var W = G_W, H = G_H;
+
+      ctx.clearRect(0, 0, W, H);
+
+      // 1 ── Trapezoid background (mirrored: inner edge on LEFT of canvas)
+      // Shape: (0,0)→(W,0)→(W,H)→(TAPER,H)
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(W, 0);
+      ctx.lineTo(W, H); ctx.lineTo(TAPER, H);
+      ctx.closePath();
+      ctx.clip();
+
+      var bg = ctx.createLinearGradient(W, 0, 0, 0); // right→left
+      bg.addColorStop(0.00, 'rgba(8,10,16,0.97)');
+      bg.addColorStop(0.42, 'rgba(8,10,16,0.94)');
+      bg.addColorStop(0.68, 'rgba(8,10,16,0.68)');
+      bg.addColorStop(0.84, 'rgba(8,10,16,0.30)');
+      bg.addColorStop(1.00, 'rgba(8,10,16,0.04)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+
+      // 2 ── Tick marks along the inner diagonal (left side of right canvas)
+      var frac    = Math.max(0, Math.min(1, rpm / RPM_MAX));
+      var redline = rpm >= 6000;
+      var LEVELS  = [7000, 6000, 5000, 4000, 3000, 2000, 1000];
+
+      LEVELS.forEach(function(lvl) {
+        var lf    = lvl / RPM_MAX;
+        var y     = TOP_PAD + TICK_H * (1 - lf);
+        var dx    = rightDiag(y);
+        var act   = lvl <= rpm;
+        var isRed = lvl >= 6000;
+        var clr   = act ? (isRed ? '#ff3535' : '#F16666') : 'rgba(162,171,187,0.28)';
+
+        ctx.strokeStyle = clr;
+        ctx.lineWidth   = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(dx, y); ctx.lineTo(dx + 22, y);
+        ctx.stroke();
+
+        ctx.font      = 'bold 12px Arial';
+        ctx.fillStyle = clr;
+        ctx.textAlign = 'left';
+        ctx.fillText(String(lvl / 1000), dx + 26, y + 4.5);
+      });
+
+      // "READY" label at bottom
+      var yR  = TOP_PAD + TICK_H;
+      var dxR = rightDiag(yR);
+      ctx.font      = '9px Arial';
+      ctx.fillStyle = rpm < 200 ? '#F16666' : 'rgba(162,171,187,0.40)';
+      ctx.textAlign = 'left';
+      ctx.fillText('READY', dxR + 26, yR + 4.5);
+
+      // 3 ── Horizontal fill bar near bottom (grows from outer/right edge leftward)
+      var barY  = H - BOT_PAD + 22;
+      var barH  = 4;
+      var barX1 = W - 8;                          // outer (right) end
+      var barX0 = Math.round(rightDiag(H)) + 8;  // inner (left) end at bottom
+      var barW  = barX1 - barX0;
+
+      ctx.fillStyle = 'rgba(241,102,102,0.10)';
+      ctx.fillRect(barX0, barY, barW, barH);
+
+      if (frac > 0) {
+        var fillW = Math.round(barW * frac);
+        var gr = ctx.createLinearGradient(barX1, 0, barX0, 0);
+        gr.addColorStop(0, redline ? '#ff2020' : '#F16666');
+        gr.addColorStop(1, 'rgba(60,5,5,0.90)');
+        ctx.fillStyle = gr;
+        ctx.fillRect(barX1 - fillW, barY, fillW, barH);
+        // bright leading-edge glow
+        ctx.fillStyle = 'rgba(255,200,200,0.90)';
+        ctx.fillRect(barX1 - fillW, barY - 1, 2, barH + 2);
+      }
+
+      // 4 ── "1/min ×1000" unit label top-right
+      ctx.font      = '10px Arial';
+      ctx.fillStyle = '#a2abbb';
+      ctx.textAlign = 'right';
+      ctx.fillText('1/min ×1000', W - 10, 26);
+
+      // 5 ── Large RPM value (upper-right)
+      var rpmText = (rpm / 1000).toFixed(1);
+      ctx.font      = 'bold 60px Arial';
+      ctx.fillStyle = redline ? '#ff3535' : '#F16666';
+      ctx.textAlign = 'right';
+      ctx.fillText(rpmText, W - 10, 94);
+
+      // "rpm" subtext
+      ctx.font      = '11px Arial';
+      ctx.fillStyle = '#a2abbb';
+      ctx.textAlign = 'right';
+      ctx.fillText('rpm', W - 10, 111);
+    }
+
+    // ── Bottom bar helpers ────────────────────────────────────────────────────
+    function updateClock() {
+      var now = new Date();
+      var h = now.getHours(), m = now.getMinutes();
+      var ampm = h >= 12 ? 'pm' : 'am';
+      h = h % 12 || 12;
+      document.getElementById('bottom-clock').textContent =
+        h + ':' + (m < 10 ? '0' : '') + m + ' ' + ampm;
+    }
+
+    function updateGauges(data) {
+      var speed = data.speed_kph  != null ? data.speed_kph  : 0;
+      var rpm   = data.rpm        != null ? data.rpm        : 0;
+      var clt   = data.clt_c     != null ? data.clt_c     : 0;
+      var fuel  = data.fuel_pct  != null ? data.fuel_pct  : 0.5;
+      var fix   = !!data.fix;
+
+      drawSpeed(speed, fuel);
+      drawRpm(rpm);
+
+      document.getElementById('bottom-fuel').textContent = Math.round(fuel * 100);
+      document.getElementById('bottom-temp').textContent  = Math.round(clt);
+      document.getElementById('bottom-gps').style.color  = fix ? '#77CEF5' : '#2a3545';
+      updateClock();
+    }
+
+    // Initial render on page load
+    window.addEventListener('load', function() {
+      drawSpeed(0, 0.5);
+      drawRpm(0);
+      updateClock();
+      setInterval(updateClock, 15000);
+    });
+
+    // ── Map init ──────────────────────────────────────────────────────────────
     function initMap() {
       map = new google.maps.Map(document.getElementById('map'), {
         zoom: 17,
@@ -333,7 +538,7 @@
         keyboardShortcuts: false,
         backgroundColor: '#1a1a1a',
         styles: [
-          { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+          { featureType: 'poi',     stylers: [{ visibility: 'off' }] },
           { featureType: 'transit', stylers: [{ visibility: 'off' }] },
           { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] }
         ]
@@ -342,223 +547,12 @@
       if (lastPos) applyPosition(lastPos);
     }
 
-    // ------------------------------------------------------------------ BMW gauge drawing
-
-    var SPEED_MAX = 330;
-    var RPM_MAX   = 7000;
-    // Speed labeled ticks (km/h)
-    var SPEED_TICKS = [330, 270, 210, 150, 120, 90, 60, 30, 0];
-    // RPM labeled ticks (rpm value, label string)
-    var RPM_TICKS = [
-      [7000, '7'], [6000, '6'], [5000, '5'], [4000, '4'],
-      [3000, '3'], [2000, '2'], [1000, '1'], [0, '']
-    ];
-    var TOP_PAD = 36, BOT_PAD = 52; // vertical padding inside gauge
-
-    function drawSpeedCanvas(speedKph) {
-      var canvas = document.getElementById('gauge-left');
-      var ctx = canvas.getContext('2d');
-      var W = 200, H = 480;
-      var drawH = H - TOP_PAD - BOT_PAD;
-
-      // Background
-      ctx.fillStyle = 'rgba(10,10,15,0.90)';
-      ctx.fillRect(0, 0, W, H);
-
-      // Right-edge separator line
-      ctx.strokeStyle = '#1e2530';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(W - 1, 0);
-      ctx.lineTo(W - 1, H);
-      ctx.stroke();
-
-      var fillFrac = Math.max(0, Math.min(1, speedKph / SPEED_MAX));
-
-      // Gradient fill bar — 8px wide strip along right edge
-      var barX = W - 22;
-      var barW = 8;
-      var barTop = TOP_PAD + drawH * (1 - fillFrac);
-      var barBot = TOP_PAD + drawH;
-
-      if (fillFrac > 0) {
-        var grad = ctx.createLinearGradient(0, barBot, 0, barTop);
-        grad.addColorStop(0, '#0a3050');
-        grad.addColorStop(1, '#77CEF5');
-        ctx.fillStyle = grad;
-        ctx.fillRect(barX, barTop, barW, barBot - barTop);
-      }
-      // Empty portion of bar
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      ctx.fillRect(barX, TOP_PAD, barW, barTop - TOP_PAD);
-
-      // Tick marks — on the right side, pointing left into the panel
-      ctx.textAlign = 'right';
-      SPEED_TICKS.forEach(function(level) {
-        var frac = level / SPEED_MAX;
-        var y = TOP_PAD + drawH * (1 - frac);
-        var isMajor = (level % 30 === 0);
-        var tickLen = isMajor ? 18 : 8;
-        var active = level <= speedKph;
-
-        ctx.strokeStyle = active ? '#77CEF5' : '#3a4555';
-        ctx.lineWidth = isMajor ? 1.5 : 1;
-        ctx.beginPath();
-        ctx.moveTo(barX - 2, y);
-        ctx.lineTo(barX - 2 - tickLen, y);
-        ctx.stroke();
-
-        if (isMajor && level > 0) {
-          ctx.font = '11px Arial';
-          ctx.fillStyle = active ? '#77CEF5' : '#3a4555';
-          ctx.fillText(String(level), barX - 2 - tickLen - 4, y + 4);
-        }
-      });
-
-      // "0" label at bottom
-      ctx.font = '11px Arial';
-      ctx.fillStyle = speedKph < 5 ? '#77CEF5' : '#3a4555';
-      ctx.fillText('0', barX - 2 - 18 - 4, TOP_PAD + drawH + 4);
-
-      // Large speed value
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 54px Arial';
-      ctx.fillStyle = '#77CEF5';
-      ctx.fillText(Math.round(speedKph), 84, H / 2 + 10);
-
-      // "km/h" unit label
-      ctx.font = '13px Arial';
-      ctx.fillStyle = '#a2abbb';
-      ctx.fillText('km/h', 84, H / 2 + 32);
-
-      // "SPD" header
-      ctx.font = 'bold 11px Arial';
-      ctx.fillStyle = '#a2abbb';
-      ctx.letterSpacing = '0.1em';
-      ctx.fillText('SPD', 84, TOP_PAD - 14);
-    }
-
-    function drawRpmCanvas(rpm) {
-      var canvas = document.getElementById('gauge-right');
-      var ctx = canvas.getContext('2d');
-      var W = 200, H = 480;
-      var drawH = H - TOP_PAD - BOT_PAD;
-
-      // Background
-      ctx.fillStyle = 'rgba(10,10,15,0.90)';
-      ctx.fillRect(0, 0, W, H);
-
-      // Left-edge separator line
-      ctx.strokeStyle = '#1e2530';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(0, H);
-      ctx.stroke();
-
-      var fillFrac = Math.max(0, Math.min(1, rpm / RPM_MAX));
-      var redline = rpm >= 6000;
-
-      // Gradient fill bar — 8px wide strip along left edge
-      var barX = 14;
-      var barW = 8;
-      var barTop = TOP_PAD + drawH * (1 - fillFrac);
-      var barBot = TOP_PAD + drawH;
-
-      if (fillFrac > 0) {
-        var grad = ctx.createLinearGradient(0, barBot, 0, barTop);
-        grad.addColorStop(0, '#3a0505');
-        grad.addColorStop(redline ? 0.5 : 1, '#F16666');
-        if (redline) grad.addColorStop(1, '#ff2020');
-        ctx.fillStyle = grad;
-        ctx.fillRect(barX, barTop, barW, barBot - barTop);
-      }
-      // Empty portion of bar
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      ctx.fillRect(barX, TOP_PAD, barW, barTop - TOP_PAD);
-
-      // Tick marks — on the left side, pointing right into the panel
-      ctx.textAlign = 'left';
-      RPM_TICKS.forEach(function(pair) {
-        var rpmVal = pair[0], label = pair[1];
-        var frac = rpmVal / RPM_MAX;
-        var y = TOP_PAD + drawH * (1 - frac);
-        var active = rpmVal <= rpm;
-        var isRedline = rpmVal >= 6000;
-
-        ctx.strokeStyle = active ? (isRedline ? '#ff2020' : '#F16666') : '#3a4555';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(barX + barW + 2, y);
-        ctx.lineTo(barX + barW + 2 + 18, y);
-        ctx.stroke();
-
-        if (label) {
-          ctx.font = '11px Arial';
-          ctx.fillStyle = active ? (isRedline ? '#ff2020' : '#F16666') : '#3a4555';
-          ctx.fillText(label, barX + barW + 2 + 18 + 4, y + 4);
-        }
-      });
-
-      // "READY" label at bottom when rpm == 0
-      if (rpm < 200) {
-        ctx.font = '10px Arial';
-        ctx.fillStyle = '#a2abbb';
-        ctx.textAlign = 'left';
-        ctx.fillText('RDY', barX + barW + 2 + 18 + 4, TOP_PAD + drawH + 4);
-      }
-
-      // Large RPM value (in thousands, 1 decimal)
-      var rpmK = (rpm / 1000).toFixed(1);
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 54px Arial';
-      ctx.fillStyle = redline ? '#ff4040' : '#F16666';
-      ctx.fillText(rpmK, W - 84, H / 2 + 10);
-
-      // "rpm ×1k" unit label
-      ctx.font = '13px Arial';
-      ctx.fillStyle = '#a2abbb';
-      ctx.fillText('rpm ×1k', W - 84, H / 2 + 32);
-
-      // "RPM" header
-      ctx.font = 'bold 11px Arial';
-      ctx.fillStyle = '#a2abbb';
-      ctx.fillText('RPM', W - 84, TOP_PAD - 14);
-    }
-
-    function updateClock() {
-      var now = new Date();
-      var h = now.getHours(), m = now.getMinutes();
-      document.getElementById('bottom-clock').textContent =
-        (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
-    }
-
-    function updateGauges(data) {
-      var speed = data.speed_kph !== undefined ? data.speed_kph : 0;
-      var rpm   = data.rpm       !== undefined ? data.rpm       : 0;
-      var clt   = data.clt_c    !== undefined ? data.clt_c    : 0;
-      drawSpeedCanvas(speed);
-      drawRpmCanvas(rpm);
-      document.getElementById('bottom-speed').textContent = Math.round(speed);
-      document.getElementById('bottom-temp').textContent  = Math.round(clt);
-      updateClock();
-    }
-
-    // Draw initial (zeroed) gauges on load
-    window.addEventListener('load', function() {
-      drawSpeedCanvas(0);
-      drawRpmCanvas(0);
-      updateClock();
-      setInterval(updateClock, 10000);
-    });
-
-    // ------------------------------------------------------------------ GPS bridge
+    // ── GPS bridge ────────────────────────────────────────────────────────────
     new QWebChannel(qt.webChannelTransport, function(channel) {
       gpsChannel = channel;
       channel.objects.gps.position_changed.connect(function(json) {
         var data = JSON.parse(json);
         document.getElementById('no-fix').classList.toggle('visible', !data.fix);
-        // Update gauges regardless of GPS fix (ECU data is independent)
         updateGauges(data);
         if (!data.fix) return;
         lastPos = data;
@@ -569,31 +563,26 @@
       });
     });
 
-    // ------------------------------------------------------------------ apply GPS
     function applyPosition(data) {
       map.setHeading(data.heading);
       map.setCenter(offsetForward({ lat: data.lat, lng: data.lon }, data.heading, forwardMeters()));
     }
 
-    // ------------------------------------------------------------------ home
+    // ── Home ──────────────────────────────────────────────────────────────────
     function goHome() {
-      if (gpsChannel) {
-        gpsChannel.objects.gps.go_home();
-      }
+      if (gpsChannel) gpsChannel.objects.gps.go_home();
     }
 
-    // ------------------------------------------------------------------ search
+    // ── Search ────────────────────────────────────────────────────────────────
     function openSearch() {
       document.getElementById('search-panel').classList.add('visible');
       document.getElementById('search-btn').style.display = 'none';
     }
-
     function closeSearch() {
       document.getElementById('search-panel').classList.remove('visible');
       if (!routeSteps.length) document.getElementById('search-btn').style.display = 'flex';
       document.getElementById('search-input').value = '';
     }
-
     async function doSearch() {
       var query = document.getElementById('search-input').value.trim();
       if (!query) return;
@@ -603,13 +592,9 @@
         return;
       }
       var btn = document.getElementById('search-go');
-      btn.textContent = '…';
-      btn.disabled = true;
-
+      btn.textContent = '…'; btn.disabled = true;
       var dbg = document.getElementById('search-input');
       try {
-        // 1. Find place via Places API (New) REST
-        var destLatLng = null;
         var placeResp = await fetch('https://places.googleapis.com/v1/places:searchText', {
           method: 'POST',
           headers: {
@@ -626,14 +611,12 @@
           }),
         });
         var placeData = await placeResp.json();
+        var destLatLng;
         if (placeData.places && placeData.places.length) {
           var loc = placeData.places[0].location;
           destLatLng = { latitude: loc.latitude, longitude: loc.longitude };
-        } else {
-          throw new Error('Place not found. Try a street address.');
-        }
+        } else { throw new Error('Place not found.'); }
 
-        // 2. Compute route via Routes API (New)
         var resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
           method: 'POST',
           headers: {
@@ -644,18 +627,12 @@
           body: JSON.stringify({
             origin: { location: { latLng: { latitude: lastPos.lat, longitude: lastPos.lon } } },
             destination: { location: { latLng: destLatLng } },
-            travelMode: 'DRIVE',
-            languageCode: 'es',
-            units: 'METRIC',
+            travelMode: 'DRIVE', languageCode: 'es', units: 'METRIC',
           }),
         });
         var data = await resp.json();
+        if (!data.routes || !data.routes.length) throw new Error('No route found.');
 
-        if (!data.routes || !data.routes.length) {
-          throw new Error('No route found.');
-        }
-
-        // 3. Draw polyline
         if (routePolyline) routePolyline.setMap(null);
         var path = google.maps.geometry.encoding.decodePath(data.routes[0].polyline.encodedPolyline);
         routePolyline = new google.maps.Polyline({
@@ -663,48 +640,38 @@
           strokeColor: '#4A90E2', strokeWeight: 6, strokeOpacity: 0.85,
         });
 
-        // 4. Extract steps and ETA
         routeSteps = (data.routes[0].legs[0].steps || []).map(function(s) {
           return {
             endLat: s.endLocation.latLng.latitude,
             endLng: s.endLocation.latLng.longitude,
             instruction: s.navigationInstruction ? s.navigationInstruction.instructions : '',
-            maneuver: s.navigationInstruction ? s.navigationInstruction.maneuver : 'STRAIGHT',
+            maneuver:    s.navigationInstruction ? s.navigationInstruction.maneuver    : 'STRAIGHT',
           };
         });
-        var durationSec = parseInt(data.routes[0].duration);
-        routeEta = new Date(Date.now() + durationSec * 1000);
-
+        routeEta = new Date(Date.now() + parseInt(data.routes[0].duration) * 1000);
         document.getElementById('search-btn').style.display = 'none';
         closeSearch();
         if (lastPos) updateTurnBanner(lastPos);
-
       } catch (e) {
-        dbg.value = '';
-        dbg.placeholder = 'ERROR: ' + e.message;
+        dbg.value = ''; dbg.placeholder = 'ERROR: ' + e.message;
       }
-
-      btn.textContent = 'Go';
-      btn.disabled = false;
+      btn.textContent = 'Go'; btn.disabled = false;
     }
 
-    // ------------------------------------------------------------------ on-screen keyboard
     function oskKey(ch) { document.getElementById('search-input').value += ch; }
     function oskBackspace() {
       var el = document.getElementById('search-input');
       el.value = el.value.slice(0, -1);
     }
 
-    // ------------------------------------------------------------------ routing
+    // ── Route ─────────────────────────────────────────────────────────────────
     function cancelRoute() {
       if (routePolyline) { routePolyline.setMap(null); routePolyline = null; }
-      routeSteps = [];
-      routeEta = null;
+      routeSteps = []; routeEta = null;
       document.getElementById('turn-banner').classList.remove('visible');
       document.getElementById('search-btn').style.display = 'flex';
     }
 
-    // ------------------------------------------------------------------ turn banner
     function updateTurnBanner(data) {
       if (!routeSteps.length) return;
       var nearestIdx = 0, minDist = Infinity;
@@ -726,7 +693,6 @@
       document.getElementById('turn-banner').classList.add('visible');
     }
 
-    // ------------------------------------------------------------------ maneuver icon
     function maneuverIcon(maneuver) {
       var d = {
         'STRAIGHT':          'M12 4 L12 20 M8 8 L12 4 L16 8',
@@ -746,17 +712,16 @@
         'DESTINATION':       'M12 2 A5 5 0 0 1 12 12 A5 5 0 0 1 12 2 M12 12 L12 20',
       };
       var path = d[maneuver] || d['STRAIGHT'];
-      return '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#a2abbb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="' + path + '"/></svg>';
+      return '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#a2abbb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="' + path + '"/></svg>';
     }
 
-    // ------------------------------------------------------------------ math helpers
+    // ── Math helpers ──────────────────────────────────────────────────────────
     function haversine(lat1, lon1, lat2, lon2) {
       var R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
       var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
               Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
-
     function offsetForward(pos, heading, meters) {
       var R = 6371000, h = heading*Math.PI/180;
       var lat1 = pos.lat*Math.PI/180, lon1 = pos.lng*Math.PI/180, d = meters/R;
@@ -764,7 +729,6 @@
       var lon2 = lon1+Math.atan2(Math.sin(h)*Math.sin(d)*Math.cos(lat1), Math.cos(d)-Math.sin(lat1)*Math.sin(lat2));
       return { lat: lat2*180/Math.PI, lng: lon2*180/Math.PI };
     }
-
     function forwardMeters() {
       var zoom = map ? map.getZoom() : 17, lat = map ? map.getCenter().lat() : 0;
       return 156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,zoom) * (window.innerHeight/6);
