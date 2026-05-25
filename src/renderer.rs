@@ -222,26 +222,34 @@ impl Renderer {
     /// Draw `text` centered on (cx, cy) at the given pixel size.
     /// `rgba` = [R, G, B, A] where A is 0-255 opacity.
     pub fn draw_text_centered(&mut self, text: &str, cx: f32, cy: f32, size: f32, rgba: [u8; 4]) {
-        // First pass: measure total width
-        let mut total_w = 0.0f32;
-        for ch in text.chars() {
-            let (metrics, _) = self.font.rasterize(ch, size);
-            total_w += metrics.advance_width;
-        }
+        // Single pass: collect all glyph data (avoids double rasterization)
+        let glyphs: Vec<_> = text.chars()
+            .map(|ch| self.font.rasterize(ch, size))
+            .collect();
 
-        // Second pass: render each glyph
+        let total_w: f32 = glyphs.iter().map(|(m, _)| m.advance_width).sum();
         let mut cursor_x = cx - total_w * 0.5;
         let [r, g, b, alpha] = rgba;
 
-        for ch in text.chars() {
-            let (metrics, bitmap) = self.font.rasterize(ch, size);
+        // Use font line metrics for a consistent shared baseline
+        // (avoids per-glyph ymin producing different vertical offsets for each char)
+        let ascent = self.font.horizontal_line_metrics(size)
+            .map(|lm| lm.ascent)
+            .unwrap_or(size * 0.75);
+        let descent = self.font.horizontal_line_metrics(size)
+            .map(|lm| lm.descent)
+            .unwrap_or(-(size * 0.25));
+        let text_height = ascent - descent;
+        let baseline_y = (cy + text_height * 0.5 - ascent) as i32;
 
-            // glyph top-left in screen coords
+        let pw = self.pixmap.width() as i32;
+        let ph = self.pixmap.height() as i32;
+
+        for (metrics, bitmap) in &glyphs {
+            // Glyph top-left: baseline minus how far above baseline this glyph extends
             let gx = cursor_x as i32 + metrics.xmin;
-            let gy = cy as i32 - metrics.height as i32 / 2 - metrics.ymin;
+            let gy = baseline_y - metrics.height as i32 - metrics.ymin;
 
-            let pw = self.pixmap.width() as i32;
-            let ph = self.pixmap.height() as i32;
             let data = self.pixmap.data_mut();
 
             for row in 0..metrics.height as i32 {
@@ -283,6 +291,7 @@ impl Renderer {
 
     /// Draw RPM value (large) and "rpm" unit label on the right gauge.
     pub fn draw_rpm_text(&mut self, rpm: f32) {
+        let rpm = rpm.clamp(0.0, RPM_MAX);
         let text = format!("{:.0}", rpm);
         self.draw_text_centered(&text, RPM_CX, RPM_CY - 10.0, 64.0, COL_WHITE);
         self.draw_text_centered("rpm", RPM_CX, RPM_CY + 42.0, 18.0, COL_GRAY);
