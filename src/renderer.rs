@@ -154,6 +154,7 @@ impl Renderer {
 
     /// Draw the RPM fill arc; above redline the excess glows brighter red.
     pub fn draw_rpm_fill(&mut self, rpm: f32) {
+        let rpm = rpm.clamp(0.0, RPM_MAX);
         let sweep = value_to_sweep(rpm, 0.0, RPM_MAX);
         if rpm <= RPM_REDLINE {
             self.stroke_arc(RPM_CX, RPM_CY, RPM_R, ARC_START_DEG, sweep, COL_RED, TRACK_WIDTH);
@@ -204,7 +205,8 @@ impl Renderer {
     pub fn draw_clt_bar(&mut self, clt_c: f32) {
         let x = 630.0; let y = 430.0; let max_w = 140.0; let h = 10.0;
         self.fill_rect(x, y, max_w, h, COL_TRACK);
-        let fill_w = (value_to_sweep(clt_c, 60.0, 120.0) / ARC_SWEEP_DEG * max_w).max(2.0);
+        let fill_w = (value_to_sweep(clt_c, 60.0, 120.0) / ARC_SWEEP_DEG * max_w)
+            .clamp(2.0, max_w);
         self.fill_rect(x, y, fill_w, h, COL_RED);
     }
 
