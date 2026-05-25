@@ -53,7 +53,7 @@ fn main() {
         // Blit pixmap → SDL2 texture → screen
         // tiny-skia pixmap is RGBA; ABGR8888 on little-endian Pi = RGBA in memory
         texture
-            .update(Rect::new(0, 0, W, H), renderer.pixmap.data(), (W * 4) as usize)
+            .update(Rect::new(0, 0, W, H), renderer.pixmap.data(), (W as usize) * 4)
             .expect("texture update");
         canvas.copy(&texture, None, None).expect("canvas copy");
         canvas.present();
