@@ -1,11 +1,13 @@
 mod state;
 mod renderer;
+mod can;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
 use std::env;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use crate::renderer::{Renderer, W, H};
 use crate::state::VehicleState;
@@ -48,6 +50,7 @@ fn main() {
     if simulate { log::info!("Simulate mode active"); }
 
     let state = state::new_shared();
+    can::spawn_can_thread(Arc::clone(&state));
 
     let sdl   = sdl2::init().expect("SDL2 init");
     let video = sdl.video().expect("SDL2 video");
