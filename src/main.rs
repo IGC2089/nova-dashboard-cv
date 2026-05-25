@@ -96,6 +96,14 @@ fn main() {
             snap
         };
         renderer.draw_frame(&snap, frame);
+
+        // Splash fade: 36 frames = 0.6s
+        const SPLASH_FRAMES: u64 = 36;
+        if frame < SPLASH_FRAMES {
+            let alpha = 1.0 - (frame as f32 / SPLASH_FRAMES as f32);
+            renderer.blend_splash(alpha);
+        }
+
         frame += 1;
 
         // Blit pixmap → SDL2 texture → screen

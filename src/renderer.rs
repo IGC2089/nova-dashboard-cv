@@ -1,5 +1,6 @@
 use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke, Transform};
 use fontdue::{Font, FontSettings};
+use image::RgbaImage;
 use crate::state::VehicleState;
 
 // ── Layout constants ────────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ pub fn build_arc_path(cx: f32, cy: f32, r: f32, start_deg: f32, sweep_deg: f32) 
 pub struct Renderer {
     pub pixmap: Pixmap,
     font: Font,
+    splash: Option<RgbaImage>,
 }
 
 impl Renderer {
@@ -118,7 +120,12 @@ impl Renderer {
         let font = Font::from_bytes(font_bytes.as_slice(), FontSettings::default())
             .expect("fontdue: failed to parse font");
 
-        Self { pixmap, font }
+        // Load splash logo (gracefully skip if not found)
+        let splash = image::open("assets/splash_logo.png")
+            .ok()
+            .map(|img| img.resize_exact(W, H, image::imageops::FilterType::Lanczos3).to_rgba8());
+
+        Self { pixmap, font, splash }
     }
 
     fn color(rgba: [u8; 4]) -> Color {
@@ -425,6 +432,23 @@ impl Renderer {
         let (rx1, ry1, rx2, ry2) = Self::PAIRING_REJECT_RECT;
         self.fill_rect(rx1 as f32, ry1 as f32, (rx2 - rx1) as f32, (ry2 - ry1) as f32, [50, 50, 50, 255]);
         self.draw_text_centered("REJECT", (rx1 + rx2) as f32 * 0.5, (ry1 + ry2) as f32 * 0.5, 16.0, COL_GRAY);
+    }
+
+    /// Alpha-blend the splash PNG over the current frame.
+    /// `alpha` 1.0 = fully splash, 0.0 = fully dashboard.
+    pub fn blend_splash(&mut self, alpha: f32) {
+        let Some(splash) = &self.splash else { return; };
+        let alpha = alpha.clamp(0.0, 1.0);
+        let data = self.pixmap.data_mut();
+        for (i, pixel) in splash.pixels().enumerate() {
+            let base = i * 4;
+            let sa = pixel[3] as f32 / 255.0 * alpha;
+            let da = 1.0 - sa;
+            data[base]     = (pixel[0] as f32 * sa + data[base]     as f32 * da) as u8;
+            data[base + 1] = (pixel[1] as f32 * sa + data[base + 1] as f32 * da) as u8;
+            data[base + 2] = (pixel[2] as f32 * sa + data[base + 2] as f32 * da) as u8;
+            data[base + 3] = 255;
+        }
     }
 
     /// Draw everything for one frame.
