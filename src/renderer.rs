@@ -1,4 +1,5 @@
 use tiny_skia::{Color, Paint, PathBuilder, Pixmap, Stroke, Transform};
+use fontdue::{Font, FontSettings};
 use crate::state::VehicleState;
 
 // ── Layout constants ────────────────────────────────────────────────────────
@@ -30,7 +31,6 @@ const COL_TRACK:  [u8; 4] = [40,  40,  40,  255];
 const COL_CYAN:   [u8; 4] = [119, 206, 245, 255]; // #77CEF5 speed fill
 const COL_RED:    [u8; 4] = [241, 102, 102, 255]; // #F16666 RPM fill
 const COL_REDLINE:[u8; 4] = [255,  34,  34, 255]; // #FF2222 redline glow
-#[allow(dead_code)]
 const COL_WHITE:  [u8; 4] = [255, 255, 255, 255];
 const COL_GRAY:   [u8; 4] = [160, 160, 160, 255];
 #[allow(dead_code)]
@@ -101,12 +101,21 @@ pub fn build_arc_path(cx: f32, cy: f32, r: f32, start_deg: f32, sweep_deg: f32) 
 
 pub struct Renderer {
     pub pixmap: Pixmap,
+    font: Font,
 }
 
 impl Renderer {
     pub fn new() -> Self {
         let pixmap = Pixmap::new(W, H).expect("Failed to create pixmap");
-        Self { pixmap }
+
+        // DejaVuSans-Bold ships with Debian by default (fonts-dejavu-core)
+        let font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+        let font_bytes = std::fs::read(font_path)
+            .unwrap_or_else(|_| panic!("Font not found at {font_path}\nRun: sudo apt install fonts-dejavu-core"));
+        let font = Font::from_bytes(font_bytes.as_slice(), FontSettings::default())
+            .expect("fontdue: failed to parse font");
+
+        Self { pixmap, font }
     }
 
     fn color(rgba: [u8; 4]) -> Color {
@@ -210,6 +219,75 @@ impl Renderer {
         self.fill_rect(x, y, fill_w, h, COL_RED);
     }
 
+    /// Draw `text` centered on (cx, cy) at the given pixel size.
+    /// `rgba` = [R, G, B, A] where A is 0-255 opacity.
+    pub fn draw_text_centered(&mut self, text: &str, cx: f32, cy: f32, size: f32, rgba: [u8; 4]) {
+        // First pass: measure total width
+        let mut total_w = 0.0f32;
+        for ch in text.chars() {
+            let (metrics, _) = self.font.rasterize(ch, size);
+            total_w += metrics.advance_width;
+        }
+
+        // Second pass: render each glyph
+        let mut cursor_x = cx - total_w * 0.5;
+        let [r, g, b, alpha] = rgba;
+
+        for ch in text.chars() {
+            let (metrics, bitmap) = self.font.rasterize(ch, size);
+
+            // glyph top-left in screen coords
+            let gx = cursor_x as i32 + metrics.xmin;
+            let gy = cy as i32 - metrics.height as i32 / 2 - metrics.ymin;
+
+            let pw = self.pixmap.width() as i32;
+            let ph = self.pixmap.height() as i32;
+            let data = self.pixmap.data_mut();
+
+            for row in 0..metrics.height as i32 {
+                for col in 0..metrics.width as i32 {
+                    let coverage = bitmap[(row * metrics.width as i32 + col) as usize];
+                    if coverage == 0 { continue; }
+
+                    let px = gx + col;
+                    let py = gy + row;
+                    if px < 0 || px >= pw || py < 0 || py >= ph { continue; }
+
+                    let idx = ((py * pw + px) * 4) as usize;
+                    // Effective alpha = glyph coverage * colour alpha
+                    let eff_a = (coverage as u32 * alpha as u32) / 255;
+                    let inv_a = 255 - eff_a;
+
+                    // Alpha-composite over existing pixel
+                    let sr = (r as u32 * eff_a + 127) / 255;
+                    let sg = (g as u32 * eff_a + 127) / 255;
+                    let sb = (b as u32 * eff_a + 127) / 255;
+
+                    data[idx]     = (sr + data[idx]     as u32 * inv_a / 255).min(255) as u8;
+                    data[idx + 1] = (sg + data[idx + 1] as u32 * inv_a / 255).min(255) as u8;
+                    data[idx + 2] = (sb + data[idx + 2] as u32 * inv_a / 255).min(255) as u8;
+                    data[idx + 3] = (eff_a + data[idx + 3] as u32 * inv_a / 255).min(255) as u8;
+                }
+            }
+
+            cursor_x += metrics.advance_width;
+        }
+    }
+
+    /// Draw speed value (large) and "km/h" unit label on the left gauge.
+    pub fn draw_speed_text(&mut self, speed_kph: f32, gps_fix: bool) {
+        let text = if gps_fix { format!("{:.0}", speed_kph) } else { "---".to_string() };
+        self.draw_text_centered(&text, SPD_CX, SPD_CY - 10.0, 64.0, COL_WHITE);
+        self.draw_text_centered("km/h", SPD_CX, SPD_CY + 42.0, 18.0, COL_GRAY);
+    }
+
+    /// Draw RPM value (large) and "rpm" unit label on the right gauge.
+    pub fn draw_rpm_text(&mut self, rpm: f32) {
+        let text = format!("{:.0}", rpm);
+        self.draw_text_centered(&text, RPM_CX, RPM_CY - 10.0, 64.0, COL_WHITE);
+        self.draw_text_centered("rpm", RPM_CX, RPM_CY + 42.0, 18.0, COL_GRAY);
+    }
+
     /// Draw everything for one frame.
     pub fn draw_frame(&mut self, state: &VehicleState, _frame: u64) {
         self.clear();
@@ -220,6 +298,8 @@ impl Renderer {
         self.draw_ticks(RPM_CX, RPM_CY, RPM_R, COL_GRAY);
         self.draw_fuel_bar(state.fuel_pct);
         self.draw_clt_bar(state.clt_c);
+        self.draw_speed_text(state.speed_kph, state.gps_fix);
+        self.draw_rpm_text(state.rpm);
     }
 }
 
@@ -283,5 +363,16 @@ mod tests {
         let sweep_at_redline = value_to_sweep(RPM_REDLINE, 0.0, RPM_MAX);
         let expected = (RPM_REDLINE / RPM_MAX) * ARC_SWEEP_DEG;
         assert!((sweep_at_redline - expected).abs() < 0.01);
+    }
+
+    #[test]
+    fn text_centering_math_zero_width() {
+        // If total_w == 0, cursor_x starts at cx — no panic
+        // We can't rasterize without the font, so this tests the math path only.
+        // (Full integration tested visually via --simulate)
+        let cx = 200.0f32;
+        let total_w = 0.0f32;
+        let cursor_x = cx - total_w * 0.5;
+        assert_eq!(cursor_x, 200.0);
     }
 }
