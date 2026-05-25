@@ -1,0 +1,22 @@
+[package]
+name = "nova-dashboard"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "nova-dashboard"
+path = "src/main.rs"
+
+[dependencies]
+sdl2        = "0.37"
+tiny-skia   = "0.11"
+socketcan   = "3"
+serde_json  = "1"
+zbus        = "4"
+tokio       = { version = "1", features = ["rt", "rt-multi-thread", "time", "macros"] }
+serde       = { version = "1", features = ["derive"] }
+fontdue     = "0.9"
+parking_lot = "0.12"
+image       = "0.25"
+log         = "0.4"
+env_logger  = "0.11"
