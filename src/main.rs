@@ -1,3 +1,6 @@
+mod state;
+
 fn main() {
-    println!("nova-dashboard starting");
+    let _state = state::new_shared();
+    println!("nova-dashboard starting — state OK");
 }
