@@ -401,11 +401,9 @@ impl Renderer {
 
         // Title and device name
         self.draw_text_centered("BLUETOOTH PAIRING", 400.0, 158.0, 18.0, COL_AMBER);
-        let device = if state.bt_pairing_device.len() > 28 {
-            &state.bt_pairing_device[..28]
-        } else {
-            &state.bt_pairing_device
-        };
+        // Truncate to 28 chars (not bytes) — device names may contain non-ASCII
+        let device_truncated: String = state.bt_pairing_device.chars().take(28).collect();
+        let device = device_truncated.as_str();
         self.draw_text_centered(device, 400.0, 185.0, 14.0, COL_GRAY);
         self.draw_text_centered("CONFIRM CODE ON YOUR PHONE", 400.0, 210.0, 11.0, COL_GRAY);
 
