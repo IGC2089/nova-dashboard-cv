@@ -2,7 +2,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 /// All live vehicle data. Must be `Clone` so main thread can snapshot without holding the lock.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct VehicleState {
     // ECU (from CAN)
     pub rpm:         f32,
@@ -28,6 +28,30 @@ pub struct VehicleState {
     pub bt_pairing_accepted: Option<bool>,
 }
 
+impl Default for VehicleState {
+    fn default() -> Self {
+        Self {
+            rpm:         0.0,
+            map_kpa:     101.3,   // atmospheric pressure at rest
+            clt_c:       0.0,
+            afr:         14.7,    // stoichiometric — valid before first CAN frame
+            tps_pct:     0.0,
+            iat_c:       20.0,    // room temperature default
+            batt_v:      12.0,    // nominal resting voltage
+            ign_advance: 0.0,
+            speed_kph:   0.0,
+            odo_km:      0.0,
+            trip_km:     0.0,
+            gps_fix:     false,
+            fuel_pct:    0.5,     // half tank — better than empty
+            bt_pairing_pending:  false,
+            bt_pairing_device:   String::new(),
+            bt_pairing_passkey:  0,
+            bt_pairing_accepted: None,
+        }
+    }
+}
+
 /// Thread-safe shared state handle. Clone this Arc to give each thread access.
 pub type SharedState = Arc<Mutex<VehicleState>>;
 
@@ -45,7 +69,8 @@ mod tests {
         let s = VehicleState::default();
         assert_eq!(s.rpm, 0.0);
         assert_eq!(s.speed_kph, 0.0);
-        assert_eq!(s.afr, 0.0);
+        assert_eq!(s.afr, 14.7);          // stoichiometric, not 0.0
+        assert_eq!(s.batt_v, 12.0);       // nominal resting voltage
         assert!(!s.bt_pairing_pending);
         assert!(s.bt_pairing_accepted.is_none());
     }
@@ -54,9 +79,12 @@ mod tests {
     fn shared_state_can_be_written_and_cloned() {
         let shared = new_shared();
 
-        // Write from one "thread"
-        shared.lock().rpm = 3500.0;
-        shared.lock().speed_kph = 120.0;
+        // Write both fields atomically under a single lock
+        {
+            let mut s = shared.lock();
+            s.rpm = 3500.0;
+            s.speed_kph = 120.0;
+        }
 
         // Read snapshot — lock held briefly, then released
         let snap = shared.lock().clone();
