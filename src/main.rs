@@ -26,7 +26,6 @@ fn main() {
 
     let mut canvas = window
         .into_canvas()
-        .present_vsync()
         .build()
         .expect("SDL2 canvas creation failed");
 
