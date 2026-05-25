@@ -22,7 +22,6 @@ const RPM_REDLINE: f32 = 6000.0;
 const ARC_START_DEG: f32 = 210.0;   // where the arc begins (clock-face degrees)
 const ARC_SWEEP_DEG: f32 = 300.0;   // total sweep
 const TRACK_WIDTH:   f32 = 14.0;    // stroke width for arcs
-#[allow(dead_code)]
 const TICK_SEGMENTS: usize = 8;     // creates 9 ticks (0..=8)
 
 // Colors (RGBA 0–255)
@@ -30,11 +29,9 @@ const COL_BG:     [u8; 4] = [10,  10,  10,  255];
 const COL_TRACK:  [u8; 4] = [40,  40,  40,  255];
 const COL_CYAN:   [u8; 4] = [119, 206, 245, 255]; // #77CEF5 speed fill
 const COL_RED:    [u8; 4] = [241, 102, 102, 255]; // #F16666 RPM fill
-#[allow(dead_code)]
 const COL_REDLINE:[u8; 4] = [255,  34,  34, 255]; // #FF2222 redline glow
 #[allow(dead_code)]
 const COL_WHITE:  [u8; 4] = [255, 255, 255, 255];
-#[allow(dead_code)]
 const COL_GRAY:   [u8; 4] = [160, 160, 160, 255];
 #[allow(dead_code)]
 const COL_AMBER:  [u8; 4] = [255, 165,   0, 255]; // warning amber
@@ -149,10 +146,78 @@ impl Renderer {
         }
     }
 
+    /// Draw the speed fill arc from 0 to current speed.
+    pub fn draw_speed_fill(&mut self, speed_kph: f32) {
+        let sweep = value_to_sweep(speed_kph, 0.0, SPD_MAX);
+        self.stroke_arc(SPD_CX, SPD_CY, SPD_R, ARC_START_DEG, sweep, COL_CYAN, TRACK_WIDTH);
+    }
+
+    /// Draw the RPM fill arc; above redline the excess glows brighter red.
+    pub fn draw_rpm_fill(&mut self, rpm: f32) {
+        let sweep = value_to_sweep(rpm, 0.0, RPM_MAX);
+        if rpm <= RPM_REDLINE {
+            self.stroke_arc(RPM_CX, RPM_CY, RPM_R, ARC_START_DEG, sweep, COL_RED, TRACK_WIDTH);
+        } else {
+            let normal_sweep = value_to_sweep(RPM_REDLINE, 0.0, RPM_MAX);
+            self.stroke_arc(RPM_CX, RPM_CY, RPM_R, ARC_START_DEG, normal_sweep, COL_RED, TRACK_WIDTH);
+            let glow_sweep = sweep - normal_sweep;
+            self.stroke_arc(RPM_CX, RPM_CY, RPM_R,
+                            ARC_START_DEG + normal_sweep, glow_sweep,
+                            COL_REDLINE, TRACK_WIDTH + 4.0);
+        }
+    }
+
+    /// Draw evenly-spaced tick marks around a gauge arc.
+    /// Uses `cy - r * sin_a` (Y negated) consistent with `build_arc_path`.
+    pub fn draw_ticks(&mut self, cx: f32, cy: f32, r: f32, rgba: [u8; 4]) {
+        let mut paint = Paint::default();
+        paint.set_color(Self::color(rgba));
+        paint.anti_alias = true;
+        let stroke = Stroke { width: 2.0, ..Default::default() };
+
+        for i in 0..=TICK_SEGMENTS {
+            let t = i as f32 / TICK_SEGMENTS as f32;
+            let angle_rad = (ARC_START_DEG + t * ARC_SWEEP_DEG).to_radians();
+            let cos_a = angle_rad.cos();
+            let sin_a = angle_rad.sin();
+            let inner = r - 16.0;
+            let outer = r + 4.0;
+            let mut pb = PathBuilder::new();
+            // Y negated: cy - r*sin  (same convention as build_arc_path)
+            pb.move_to(cx + inner * cos_a, cy - inner * sin_a);
+            pb.line_to(cx + outer * cos_a, cy - outer * sin_a);
+            if let Some(path) = pb.finish() {
+                self.pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+            }
+        }
+    }
+
+    /// Draw the fuel level mini-bar at the bottom-left.
+    pub fn draw_fuel_bar(&mut self, fuel_pct: f32) {
+        let x = 30.0; let y = 430.0; let max_w = 140.0; let h = 10.0;
+        self.fill_rect(x, y, max_w, h, COL_TRACK);
+        let fill_w = (fuel_pct.clamp(0.0, 1.0) * max_w).max(2.0);
+        self.fill_rect(x, y, fill_w, h, COL_CYAN);
+    }
+
+    /// Draw the coolant temperature mini-bar at the bottom-right.
+    pub fn draw_clt_bar(&mut self, clt_c: f32) {
+        let x = 630.0; let y = 430.0; let max_w = 140.0; let h = 10.0;
+        self.fill_rect(x, y, max_w, h, COL_TRACK);
+        let fill_w = (value_to_sweep(clt_c, 60.0, 120.0) / ARC_SWEEP_DEG * max_w).max(2.0);
+        self.fill_rect(x, y, fill_w, h, COL_RED);
+    }
+
     /// Draw everything for one frame.
-    pub fn draw_frame(&mut self, _state: &VehicleState, _frame: u64) {
+    pub fn draw_frame(&mut self, state: &VehicleState, _frame: u64) {
         self.clear();
         self.draw_gauge_tracks();
+        self.draw_speed_fill(state.speed_kph);
+        self.draw_rpm_fill(state.rpm);
+        self.draw_ticks(SPD_CX, SPD_CY, SPD_R, COL_GRAY);
+        self.draw_ticks(RPM_CX, RPM_CY, RPM_R, COL_GRAY);
+        self.draw_fuel_bar(state.fuel_pct);
+        self.draw_clt_bar(state.clt_c);
     }
 }
 
@@ -204,5 +269,17 @@ mod tests {
         let r = Renderer::new();
         assert_eq!(r.pixmap.width(), W);
         assert_eq!(r.pixmap.height(), H);
+    }
+
+    #[test]
+    fn speed_fill_zero_gives_no_arc() {
+        assert_eq!(value_to_sweep(0.0, 0.0, SPD_MAX), 0.0);
+    }
+
+    #[test]
+    fn rpm_redline_at_correct_fraction() {
+        let sweep_at_redline = value_to_sweep(RPM_REDLINE, 0.0, RPM_MAX);
+        let expected = (RPM_REDLINE / RPM_MAX) * ARC_SWEEP_DEG;
+        assert!((sweep_at_redline - expected).abs() < 0.01);
     }
 }
