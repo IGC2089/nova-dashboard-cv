@@ -10,6 +10,20 @@ use crate::renderer::{Renderer, W, H};
 
 const FRAME_TIME: Duration = Duration::from_micros(16_667);
 
+fn handle_tap(x: i32, y: i32, state: &crate::state::SharedState) {
+    let mut s = state.lock();
+    if !s.bt_pairing_pending { return; }
+    let (ax1, ay1, ax2, ay2) = Renderer::PAIRING_ACCEPT_RECT;
+    let (rx1, ry1, rx2, ry2) = Renderer::PAIRING_REJECT_RECT;
+    if x >= ax1 && x <= ax2 && y >= ay1 && y <= ay2 {
+        s.bt_pairing_accepted = Some(true);
+        s.bt_pairing_pending  = false;
+    } else if x >= rx1 && x <= rx2 && y >= ry1 && y <= ry2 {
+        s.bt_pairing_accepted = Some(false);
+        s.bt_pairing_pending  = false;
+    }
+}
+
 fn main() {
     env_logger::init();
     let state = state::new_shared();
@@ -42,6 +56,7 @@ fn main() {
                 Event::Quit { .. }
                 | Event::KeyDown { keycode: Some(Keycode::Escape), .. }
                 | Event::KeyDown { keycode: Some(Keycode::Q), .. } => break 'running,
+                Event::MouseButtonUp { x, y, .. } => handle_tap(x, y, &state),
                 _ => {}
             }
         }

@@ -33,7 +33,6 @@ const COL_RED:    [u8; 4] = [241, 102, 102, 255]; // #F16666 RPM fill
 const COL_REDLINE:[u8; 4] = [255,  34,  34, 255]; // #FF2222 redline glow
 const COL_WHITE:  [u8; 4] = [255, 255, 255, 255];
 const COL_GRAY:   [u8; 4] = [160, 160, 160, 255];
-#[allow(dead_code)]
 const COL_AMBER:  [u8; 4] = [255, 165,   0, 255]; // warning amber
 
 // ── Gauge config ─────────────────────────────────────────────────────────────
@@ -105,6 +104,10 @@ pub struct Renderer {
 }
 
 impl Renderer {
+    // ── Hit-region constants (used by main.rs for touch/click handling) ────────
+    pub const PAIRING_ACCEPT_RECT: (i32, i32, i32, i32) = (230, 285, 390, 335);
+    pub const PAIRING_REJECT_RECT: (i32, i32, i32, i32) = (410, 285, 570, 335);
+
     pub fn new() -> Self {
         let pixmap = Pixmap::new(W, H).expect("Failed to create pixmap");
 
@@ -297,8 +300,137 @@ impl Renderer {
         self.draw_text_centered("rpm", RPM_CX, RPM_CY + 42.0, 18.0, COL_GRAY);
     }
 
+    // ── Center readout helpers ───────────────────────────────────────────────
+
+    fn draw_readout(&mut self, label: &str, value: &str, unit: &str, cx: f32, cy: f32, val_size: f32) {
+        self.draw_text_centered(label, cx, cy - val_size * 0.6, 13.0, COL_GRAY);
+        self.draw_text_centered(value, cx, cy, val_size, COL_WHITE);
+        if !unit.is_empty() {
+            self.draw_text_centered(unit, cx, cy + val_size * 0.6, 11.0, COL_GRAY);
+        }
+    }
+
+    /// Draw the center cluster of ECU readouts.
+    pub fn draw_center_readouts(&mut self, state: &VehicleState) {
+        // Row 1: BATT, IGN
+        self.draw_readout("BATT", &format!("{:.1}", state.batt_v),      "V",   350.0, 155.0, 20.0);
+        self.draw_readout("IGN",  &format!("{:.1}", state.ign_advance), "deg", 450.0, 155.0, 20.0);
+        // Row 2: MAP, CLT
+        self.draw_readout("MAP",  &format!("{:.0}", state.map_kpa),     "kPa", 350.0, 210.0, 20.0);
+        self.draw_readout("CLT",  &format!("{:.0}", state.clt_c),       "C",   450.0, 210.0, 20.0);
+        // Row 3: AFR (large, no unit)
+        self.draw_readout("AFR",  &format!("{:.1}", state.afr),         "",    400.0, 265.0, 32.0);
+        // Row 4: ODO, TRIP (gray out if no GPS)
+        let odo_str  = if state.gps_fix { format!("{:.0}", state.odo_km)  } else { "NO GPS".to_string() };
+        let trip_str = if state.gps_fix { format!("{:.1}", state.trip_km) } else { "---".to_string() };
+        self.draw_readout("ODO",  &odo_str,  "km", 350.0, 330.0, 16.0);
+        self.draw_readout("TRIP", &trip_str, "km", 450.0, 330.0, 16.0);
+    }
+
+    /// Draw pulsing warning icons for OVRHEAT, RICH, and LEAN conditions.
+    pub fn draw_warnings(&mut self, state: &VehicleState, frame: u64) {
+        let mut warnings: Vec<(&str, [u8; 4])> = Vec::new();
+        if state.clt_c > 99.0 {
+            warnings.push(("OVRHEAT", COL_AMBER));
+        }
+        if state.afr < 11.0 {
+            warnings.push(("RICH", COL_AMBER));
+        } else if state.afr > 16.5 {
+            warnings.push(("LEAN", [255, 0, 0, 255]));  // bright red for lean
+        }
+        if warnings.is_empty() { return; }
+
+        // Pulse brightness: 0.4 to 1.0 cycle
+        let pulse = 0.7 + 0.3 * ((frame as f32 * 0.05).sin());
+        let n = warnings.len();
+        let spacing = 70.0f32;
+        let cx0 = W as f32 * 0.5 - (n as f32 - 1.0) * spacing * 0.5;
+        let cy = H as f32 - 40.0;
+
+        for (i, (label, color)) in warnings.iter().enumerate() {
+            let cx = cx0 + i as f32 * spacing;
+            let r = 16.0f32;
+
+            // Amber/red triangle
+            let pulsed_color = color.map(|v| ((v as f32) * pulse) as u8);
+            let mut pb = PathBuilder::new();
+            pb.move_to(cx, cy - r);
+            pb.line_to(cx - r, cy + r);
+            pb.line_to(cx + r, cy + r);
+            pb.close();
+            if let Some(path) = pb.finish() {
+                let mut paint = Paint::default();
+                paint.set_color(Color::from_rgba8(pulsed_color[0], pulsed_color[1], pulsed_color[2], 255));
+                paint.anti_alias = true;
+                self.pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding,
+                                      Transform::identity(), None);
+            }
+
+            // "!" label
+            self.draw_text_centered("!", cx, cy + 4.0, 16.0, [10, 10, 10, 255]);
+            // Text label below triangle
+            self.draw_text_centered(label, cx, cy + r + 14.0, 11.0, *color);
+        }
+    }
+
+    /// Draw the Bluetooth pairing confirmation overlay.
+    pub fn draw_pairing_overlay(&mut self, state: &VehicleState) {
+        // Semi-transparent dark scrim
+        let mut paint = Paint::default();
+        paint.set_color(Color::from_rgba8(0, 0, 0, 180));
+        if let Some(rect) = tiny_skia::Rect::from_xywh(0.0, 0.0, W as f32, H as f32) {
+            self.pixmap.fill_rect(rect, &paint, Transform::identity(), None);
+        }
+
+        // Card background
+        self.fill_rect(210.0, 130.0, 380.0, 220.0, [22, 22, 22, 255]);
+
+        // Card border (amber)
+        let mut pb = PathBuilder::new();
+        pb.move_to(210.0, 130.0);
+        pb.line_to(590.0, 130.0);
+        pb.line_to(590.0, 350.0);
+        pb.line_to(210.0, 350.0);
+        pb.close();
+        if let Some(path) = pb.finish() {
+            let mut paint = Paint::default();
+            paint.set_color(Self::color(COL_AMBER));
+            let stroke = Stroke { width: 2.0, ..Default::default() };
+            self.pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+        }
+
+        // Title and device name
+        self.draw_text_centered("BLUETOOTH PAIRING", 400.0, 158.0, 18.0, COL_AMBER);
+        let device = if state.bt_pairing_device.len() > 28 {
+            &state.bt_pairing_device[..28]
+        } else {
+            &state.bt_pairing_device
+        };
+        self.draw_text_centered(device, 400.0, 185.0, 14.0, COL_GRAY);
+        self.draw_text_centered("CONFIRM CODE ON YOUR PHONE", 400.0, 210.0, 11.0, COL_GRAY);
+
+        // Passkey — large, spaced digits
+        let passkey_str = format!("{:06}", state.bt_pairing_passkey);
+        let spaced: String = passkey_str.chars()
+            .flat_map(|c| [c, ' '])
+            .collect::<String>()
+            .trim_end()
+            .to_string();
+        self.draw_text_centered(&spaced, 400.0, 260.0, 36.0, COL_AMBER);
+
+        // ACCEPT button
+        let (ax1, ay1, ax2, ay2) = Self::PAIRING_ACCEPT_RECT;
+        self.fill_rect(ax1 as f32, ay1 as f32, (ax2 - ax1) as f32, (ay2 - ay1) as f32, COL_AMBER);
+        self.draw_text_centered("ACCEPT", (ax1 + ax2) as f32 * 0.5, (ay1 + ay2) as f32 * 0.5, 16.0, [0, 0, 0, 255]);
+
+        // REJECT button
+        let (rx1, ry1, rx2, ry2) = Self::PAIRING_REJECT_RECT;
+        self.fill_rect(rx1 as f32, ry1 as f32, (rx2 - rx1) as f32, (ry2 - ry1) as f32, [50, 50, 50, 255]);
+        self.draw_text_centered("REJECT", (rx1 + rx2) as f32 * 0.5, (ry1 + ry2) as f32 * 0.5, 16.0, COL_GRAY);
+    }
+
     /// Draw everything for one frame.
-    pub fn draw_frame(&mut self, state: &VehicleState, _frame: u64) {
+    pub fn draw_frame(&mut self, state: &VehicleState, frame: u64) {
         self.clear();
         self.draw_gauge_tracks();
         self.draw_speed_fill(state.speed_kph);
@@ -309,6 +441,11 @@ impl Renderer {
         self.draw_clt_bar(state.clt_c);
         self.draw_speed_text(state.speed_kph, state.gps_fix);
         self.draw_rpm_text(state.rpm);
+        self.draw_center_readouts(state);
+        self.draw_warnings(state, frame);
+        if state.bt_pairing_pending {
+            self.draw_pairing_overlay(state);
+        }
     }
 }
 
