@@ -2,6 +2,7 @@ mod state;
 mod renderer;
 mod can;
 mod gps;
+mod bluetooth;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -53,6 +54,7 @@ fn main() {
     let state = state::new_shared();
     can::spawn_can_thread(Arc::clone(&state));
     gps::spawn_gps_thread(Arc::clone(&state));
+    bluetooth::spawn_bluetooth_thread(Arc::clone(&state));
 
     let sdl   = sdl2::init().expect("SDL2 init");
     let video = sdl.video().expect("SDL2 video");
