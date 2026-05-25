@@ -5,10 +5,27 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
+use std::env;
 use std::time::{Duration, Instant};
 use crate::renderer::{Renderer, W, H};
+use crate::state::VehicleState;
 
 const FRAME_TIME: Duration = Duration::from_micros(16_667);
+
+fn inject_sim(mut snap: VehicleState, t: f32) -> VehicleState {
+    snap.rpm         = 3000.0 + 2500.0 * (t * 0.4).sin();
+    snap.speed_kph   = 120.0  + 100.0  * (t * 0.3).sin();
+    snap.clt_c       = 85.0   + 15.0   * (t * 0.05).sin().abs();
+    snap.fuel_pct    = 0.3    + 0.5    * (t * 0.05).sin().abs();
+    snap.afr         = 14.0   + 2.0    * (t * 0.25).sin();
+    snap.gps_fix     = true;
+    snap.batt_v      = 12.4;
+    snap.map_kpa     = 95.0;
+    snap.ign_advance = 18.0;
+    snap.odo_km      = 12345.0;
+    snap.trip_km     = 42.3;
+    snap
+}
 
 fn handle_tap(x: i32, y: i32, state: &crate::state::SharedState) {
     let mut s = state.lock();
@@ -26,6 +43,10 @@ fn handle_tap(x: i32, y: i32, state: &crate::state::SharedState) {
 
 fn main() {
     env_logger::init();
+    let simulate = env::args().any(|a| a == "--simulate");
+    let sim_start = Instant::now();
+    if simulate { log::info!("Simulate mode active"); }
+
     let state = state::new_shared();
 
     let sdl   = sdl2::init().expect("SDL2 init");
@@ -62,6 +83,11 @@ fn main() {
         }
 
         let snap = state.lock().clone();
+        let snap = if simulate {
+            inject_sim(snap, sim_start.elapsed().as_secs_f32())
+        } else {
+            snap
+        };
         renderer.draw_frame(&snap, frame);
         frame += 1;
 
