@@ -84,7 +84,7 @@ fn run_gps_loop(state: &SharedState) -> Result<(), Box<dyn std::error::Error>> {
     let stream = TcpStream::connect("127.0.0.1:2947")?;
     stream.set_read_timeout(Some(Duration::from_secs(10)))?;
     {
-        let w: &TcpStream = &stream;
+        let mut w: &TcpStream = &stream;
         w.write_all(b"?WATCH={\"enable\":true,\"json\":true}\r\n")?;
     }
     log::info!("GPS connected to gpsd");

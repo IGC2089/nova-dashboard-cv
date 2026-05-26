@@ -61,35 +61,31 @@ pub fn spawn_can_thread(state: SharedState) {
 
 #[cfg(target_os = "linux")]
 fn run_can_loop(state: &SharedState) -> Result<(), Box<dyn std::error::Error>> {
-    use socketcan::{CanSocket, Socket, CanAnyFrame, EmbeddedFrame};
+    use socketcan::{CanSocket, Socket, Frame, EmbeddedFrame};
 
     let sock = CanSocket::open("can0")?;
     log::info!("CAN listener started on can0");
 
     loop {
-        match sock.read_frame()? {
-            CanAnyFrame::Normal(frame) => {
-                let id   = frame.raw_id();
-                let data = frame.data();
+        let frame = sock.read_frame()?;
+        let id    = frame.raw_id();
+        let data  = frame.data();
 
-                if id == CAN_ID_0 {
-                    if let Some(f) = decode_0x320(data) {
-                        let mut s = state.lock();
-                        s.rpm      = f.rpm;
-                        s.map_kpa  = f.map_kpa;
-                        s.tps_pct  = f.tps_pct;
-                        s.iat_c    = f.iat_c;
-                        s.clt_c    = f.clt_c;
-                        s.afr      = f.afr;
-                        s.batt_v   = f.batt_v;
-                    }
-                } else if id == CAN_ID_1 {
-                    if let Some(f) = decode_0x321(data) {
-                        state.lock().ign_advance = f.ign_advance;
-                    }
-                }
+        if id == CAN_ID_0 {
+            if let Some(f) = decode_0x320(data) {
+                let mut s = state.lock();
+                s.rpm      = f.rpm;
+                s.map_kpa  = f.map_kpa;
+                s.tps_pct  = f.tps_pct;
+                s.iat_c    = f.iat_c;
+                s.clt_c    = f.clt_c;
+                s.afr      = f.afr;
+                s.batt_v   = f.batt_v;
             }
-            _ => {}
+        } else if id == CAN_ID_1 {
+            if let Some(f) = decode_0x321(data) {
+                state.lock().ign_advance = f.ign_advance;
+            }
         }
     }
 }
